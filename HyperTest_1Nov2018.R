@@ -37,14 +37,39 @@ str(imu)
 setDT(imu,key="Timestamp")
 
 
+###################### 15 November 2018 figure out field of view at each point
+imu$MetersAboveGround <- imu$Alt-min(imu$Alt)
+summary(imu$MetersAboveGround)
+summary(imu$Yaw)
+summary(imu$Pitch)
+summary(imu$Roll)
+
+
+
 imuxy <- imu[,c("Lon","Lat")]
-imusp <- SpatialPointsDataFrame(coords=imuxy,data=imu,proj4string = CRS("+init=epsg:4326"))
-plot(imusp,col="green")
+imusp <- SpatialPointsDataFrame(coords=imuxy,data=imu,proj4string = CRS("+init=epsg:4326")) 
 
 
-# plot(imu$Lat~imu$Lon,col=imu$Alt*4)
-# ggplot(imu,aes(Lon,Lat,color=Alt))+geom_point()+scale_color_continuous(low="red",high="green")
 
+##### read in biocon shapefile (corrected, with plot #s)
+shpcorr <- readOGR("~/Dropbox/UMN Postdoc/E141 Shapes/JMC/E141_qgisCorrected.shp")
+bbox(shpcorr)
+proj4string(shpcorr)
+
+
+imuspt <- spTransform(imusp,proj4string(shpcorr))
+#vs +init=epsg:32615
+proj4string(imusp)
+plot(imuspt,col="green")
+plot(shpcorr,col="blue",add=T)
+
+vis <- raster("/Volumes/HyperDrive/BioCON10Aug2018/ortho.tif")
+crs(vis)
+plot(vis)
+plot(imuspt,col="grey",add=T)
+plot(shpcorr,col="blue",add=T)
+
+ggplot(imuspt,aes(Lon,Lat,color=Alt))+geom_point()
 
 # plot(imu$Timestamp,rep(1,nrow(imu)))
 # points(fr.ind$Timestamp,rep(1.01,nrow(fr.ind)),col="red")
@@ -65,6 +90,31 @@ hist(fr.indximu$Frame.m)
 
 setDT(fr.indximu,key = "Frame.m")
 
+imu.rel <- imu[imu$Timestamp<(max(fr.ind$Timestamp)+20)&imu$Timestamp>(min(fr.ind$Timestamp)-20)]
+plot(imu.rel$Roll~imu.rel$Timestamp,col=imu.rel$Alt)
+plot(imu.rel$Pitch~imu.rel$Timestamp,col=imu.rel$Alt)
+
+
+plot(fr.indximu$Roll~fr.indximu$Frame.)
+points(fr.indximu$Pitch~fr.indximu$Frame.,col="blue")
+
+plot(imu.rel$Pitch~fr.indximu$Frame.,col="blue")
+
+
+##### 20 November 2018 -- biocon visual
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### ok if i can take the frame indices and match to the spatial data frame, a row would be a frame, so we could merge the information from frame 1024 with the y=1 row, 1025 would be y=2, and y=1791 would be frame 2815
 
 # tstr <- raster("raw_1024")
@@ -83,7 +133,6 @@ coordinates(tst)[,2]
 tst@data$yco <-coordinates(tst)[,2]
 
 
-###################### 15 November 2018
 
 
 
