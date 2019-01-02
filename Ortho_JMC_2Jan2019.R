@@ -30,6 +30,28 @@ library(parallel)
 #for making a beep noise
 library(beepr)
 
+
+##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
+
+#directories for MY MAC
+computer <- 'mac'
+RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
+LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
+ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
+
+#directories for ISBELL PC
+computer <- 'pc'
+RemoteSenDataLoc <- "F:/RemoteSensing/"
+LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
+ProcLoc <- "F:/JaneProc/"
+
+# fakefunction <- function(x){
+#   print(x)
+#   print(computer)
+#   }
+# fakefunction("will the computer know what I set as computer outside of the loop???")
+
+
 no_cores <- detectCores()-1
 
 degtorad <- function(x){x*pi/180} #convert degrees to radians for trig functions in R
@@ -37,10 +59,10 @@ degtorad <- function(x){x*pi/180} #convert degrees to radians for trig functions
 
 #coords.epsg = "32615" is utm 15n which is what I want here. "4326" is lat lon
 
-imu <- read.delim("/Volumes/HyperDrive/Google Drive/remote sensing data/20180917/100040_bc_2018_09_17_14_48_50/imu_gps.txt")
+imu <- read.delim(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/imu_gps.txt"))
 overallIMUmin <- min(imu$Alt)
-imu<- NULL
-imu.framematch <- read.csv("~/Dropbox/UMN Postdoc/tst imu/FramexIMU.csv")
+rm(imu)#keep things tidy
+imu.framematch <- read.csv(paste0(LocalSource,"FramexIMU.csv"))
 
 imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,degree=TRUE,coords.epsg){
   
@@ -107,7 +129,7 @@ return(out)
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326)
 names(Proc_IMU)
-imu.framematch<-NULL
+rm(imu.framematch)
 
 
 
@@ -143,37 +165,45 @@ centerandends_corr <- function(framex,spectral.data.frame,ProcessedIMU){
 
 
 shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber){
-
-  # plot_sf <- st_as_sf(PlotShapeFile)
+  plottmp <- subset(PlotShapeFile,PLOTID==plotnum)
+  plot_sf <- st_as_sf(plottmp)
   #for now, I want to test if I can see the plot edges as a square within the buffered region
-  plot_buff <- gBuffer(PlotShapeFile,width = 0.5)
-  plot_sf <- st_as_sf(plot_buff)
+  # plot_buff <- gBuffer(subset(PlotShapeFile,PLOTID==plotnum),width = 0.5)
+  # plot_sf <- st_as_sf(plot_buff)
   st_crs(plot_sf)<-st_crs(specdfOUT_sf)
   plot_clip <- st_intersection(specdfOUT_sf,plot_sf)
 
   if(dim(plot_clip)[1]>0){
     print(plotnum)
-  st_write(plot_clip,dsn="/Volumes/HyperDrive/JaneProc/",layer=paste0("BUFFProc",filenumber,"Plot",plotnum),driver="ESRI Shapefile",update=TRUE)}
+    if(computer=="mac"){
+  st_write(plot_clip,dsn=paste0(ProcLoc),layer=paste0("BUFFProc",filenumber,"Plot",plotnum),driver="ESRI Shapefile",delete_layer=TRUE)}
 
+  if(computer=="pc"){
+    st_write(plot_clip,dsn=paste0(ProcLoc,"BUFFProc",filenumber,"Plot",plotnum,".shp"),layer=paste0("BUFFProc",filenumber,"Plot",plotnum),driver="ESRI Shapefile",delete_layer=TRUE)}
+  }
 }
 
-shpfile_ringloop <- function(ringnum,specdfOUT_sf,PlotShapeFile,filenumber){
-  
-    ring_poly <- as(extent(bbox(subset(plotshp,RingID==ringnum))),"SpatialPolygons")
-  ring_buff <- gBuffer(ring_poly,width = 2)
-  ring_sf <- st_as_sf(ring_buff)
-  st_crs(ring_sf)<-st_crs(specdfOUT_sf)
-  ring_clip <- st_intersection(specdfOUT_sf,ring_sf)
-
-  if(dim(ring_clip)[1]>0){
-    print(ringnum)
-  st_write(ring_clip,dsn="/Volumes/HyperDrive/JaneProc/",layer=paste0("BUFFProc",filenumber,"Ring",ringnum),driver="ESRI Shapefile",update=TRUE)}
-
-}
+# shpfile_ringloop <- function(ringnum,specdfOUT_sf,PlotShapeFile,filenumber){
+#   
+#     ring_poly <- as(extent(bbox(subset(PlotShapeFile,RingID==ringnum))),"SpatialPolygons")
+#   ring_buff <- gBuffer(ring_poly,width = 2)
+#   ring_sf <- st_as_sf(ring_buff)
+#   st_crs(ring_sf)<-st_crs(specdfOUT_sf)
+#   ring_clip <- st_intersection(specdfOUT_sf,ring_sf)
+# 
+#   if(dim(ring_clip)[1]>0){
+#     print(ringnum)
+#     if(computer=="mac"){
+#       st_write(ring_clip,dsn=paste0(ProcLoc),layer=paste0("BUFFProc",filenumber,"ring",ringnum),driver="ESRI Shapefile",update=TRUE)}
+#     
+#     if(computer=="pc"){
+#       st_write(ring_clip,dsn=paste0(ProcLoc,"BUFFProc",filenumber,"ring",ringnum,".shp"),layer=paste0("BUFFProc",filenumber,"ring",ringnum),driver="ESRI Shapefile",update=TRUE)}
+# }
+# }
 
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile){
-  orig_sp <-readGDAL(paste0("/Volumes/HyperDrive/Google Drive/remote sensing data/20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
+  orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
   spectral.data.frame <- as.data.frame(orig_sp)
   orig_sp <- NULL
   
@@ -199,32 +229,43 @@ specdfOUT_sf <- st_as_sf(specdfOUT_sp)
 
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
-means_out <- over(plotshp,specdfOUT_sp,fn=mean)
-means_out$Plot <- 1:nrow(means_out)
+
 
 lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
-lapply(sort(unique(plotshp$RingID)),shpfile_ringloop,specdfOUT_sf,PlotShapeFile,filenumber)
+# lapply(sort(unique(plotshp$RingID)),shpfile_ringloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
 
-  st_write(specdfOUT_sf,dsn="/Volumes/HyperDrive/JaneProc/",layer=paste0("Proc",filenumber,"full"),driver="ESRI Shapefile",update=TRUE)
-
+  if(computer=="mac"){
+    st_write(specdfOUT_sf,dsn=paste0(ProcLoc),layer=paste0("Proc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
-  print(filenumber)
-# return(specdfOUT)
-  return(means_out)
+    print(filenumber) }else{print("notmac!")}
+  
+  if(computer=="pc"){
+    st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Proc",filenumber,"full.shp"),layer=paste0("Proc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
+    print(Sys.time())
+    print(filenumber)}else{print("notpc!")}
+
+means_out <- over(plotshp,specdfOUT_sp,fn=mean)
+means_out$Plot <- 1:nrow(means_out)
+means_out$File <- filenumber
+return(means_out)
+  
 
 }
 
 
-listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files("/Volumes/HyperDrive/Google Drive/remote sensing data/20180917/100040_bc_2018_09_17_14_48_50/")))))
+listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/"))))))
 
 
-plotshp <- readOGR("~/Dropbox/UMN Postdoc/E141 Shapes/JMC/e141_poly.shp")
+plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
 
-system.time(out_df10 <- rbindlist(lapply(listoffilenums[c(10)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+
+system.time(out_df4 <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 
 system.time(out_df2 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+system.time(out_df3 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+
 
 system.time(out_df1_2_3_4 <- rbindlist(lapply(listoffilenums[c(1,2,3,4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 system.time(out_df5_6_7_8 <- rbindlist(lapply(listoffilenums[c(5,6,7,8)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
