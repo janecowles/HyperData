@@ -64,6 +64,10 @@ overallIMUmin <- min(imu$Alt)
 rm(imu)#keep things tidy
 imu.framematch <- read.csv(paste0(LocalSource,"FramexIMU.csv"))
 
+bandtowave <- read.csv(paste0(LocalSource,"BandNumWavelength.csv"))
+
+
+
 imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,degree=TRUE,coords.epsg){
   
  tmp <- imu.datafile
@@ -80,8 +84,8 @@ imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,degree=TRUE,coords.epsg
  #at each point, this is the FOV
   tmp$UncorrectedFOVmeters <- 2*tmp$HeightAboveGround*tan(tmp$FOVAngle/2)
   
-  #ROLL
-   tmp$Rolloffset <- tmp$HeightAboveGround*tan(tmp$Roll) #parallel to the frame's long direction (as specified by yaw), therefore:
+  #ROLL -- Negative sign added 1/3/2019 in order to account for the reversal of what happens to the drone and which way the sensor points!
+   tmp$Rolloffset <- -tmp$HeightAboveGround*tan(tmp$Roll) #parallel to the frame's long direction (as specified by yaw), therefore:
    tmp$RollYComponent <- tmp$Rolloffset*sin(tmp$Yaw) ###(FOR NOW REMOVING THIS NEGATIVE SIGN TO SEE HOW THINGS LOOK!!!!!)
    tmp$RollXComponent <- tmp$Rolloffset*cos(tmp$Yaw)
    
@@ -128,7 +132,6 @@ return(out)
 
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326)
-names(Proc_IMU)
 rm(imu.framematch)
 
 
@@ -148,6 +151,7 @@ spacing_fun <- function(pix_i,matchimu,specdfframe){
   #ALTERED -- should be complete reversal of the yaw stuff. Maybe also the midpoint, but I did NOT do that here.
   specdfpix$Lat2<-matchimu$Lat+matchimu$TotMidPointCorrectionY-matchimu$YawYOffset+(pix_i*2*matchimu$YawYOffset/640)
   specdfpix$Lon2<-matchimu$Lon+matchimu$TotMidPointCorrectionX+matchimu$YawXOffset-(pix_i*2*matchimu$YawXOffset/640)
+  specdfpix$Heading <- matchimu$Heading
   
   
   ####new attempt -- minus the midpoint correction, too!
@@ -159,7 +163,6 @@ centerandends_corr <- function(framex,spectral.data.frame,ProcessedIMU){
    specdfframe <- spectral.data.frame[spectral.data.frame$frame==framex,]
     matchimu <- ProcessedIMU[ProcessedIMU$Frame.==framex,]
     specdfframebypix <- rbindlist(lapply(sort(unique(specdfframe$x)),spacing_fun,matchimu,specdfframe))
-    print(framex)
     return(specdfframebypix)
 }
 
@@ -202,10 +205,14 @@ shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,comput
 # }
 
 
-ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile){
+
+ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
   orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
   spectral.data.frame <- as.data.frame(orig_sp)
   orig_sp <- NULL
+
+  ### change colnames using the bandname to wavelength csv I made
+  colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
   
   #### here is where I want to FLIP IT!!!!
   ###flipped version: (NEXT: Do i want this - 0.5 anymore??)
@@ -214,6 +221,7 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile){
   # spectral.data.frame$frame <- filenumber+spectral.data.frame$y-0.5
   spectral.data.frame$Lat2 <- NA
   spectral.data.frame$Lon2 <- NA
+  spectral.data.frame$Heading <- NA
   cl<-makeCluster(no_cores)
   clusterExport(cl,c("rbindlist","spacing_fun"))
   specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
@@ -229,13 +237,11 @@ specdfOUT_sf <- st_as_sf(specdfOUT_sp)
 
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
-
-cl2<-makeCluster(no_cores)
-# clusterExport(cl2,c("subset","st_as_sf","st_crs","st_intersection","st_write"))
-clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write"),envir=environment())
-
-parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
-stopCluster(cl2)
+#commenting out for faster test runs
+# cl2<-makeCluster(no_cores)
+# clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write"),envir=environment())
+# parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
+# stopCluster(cl2)
 
 # lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
@@ -266,32 +272,5 @@ listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(Remote
 
 plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
 
-#listoffilenums[c(25)] took 3158 seconds, a little under an hour
-system.time(out_df24 <- rbindlist(lapply(listoffilenums[c(24)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-
-system.time(out_df26 <- rbindlist(lapply(listoffilenums[c(26)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-
-system.time(out_df27to29 <- rbindlist(lapply(listoffilenums[c(27,28,29)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-
-
-system.time(out_df7 <- rbindlist(lapply(listoffilenums[c(7)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-system.time(out_d9 <- rbindlist(lapply(listoffilenums[c(9)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-system.time(out_df <- rbindlist(lapply(listoffilenums[c(17)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-
-
-
-out_df_xy <- out_df[,c("Lon2","Lat2")]
-out_df_sp <- SpatialPointsDataFrame(coords=out_df_xy,data=out_df,proj4string = CRS("+init=epsg:32615")) 
-plot(out_df_sp)
-plot(plotshp,col="blue",add=T)
-proc <- readOGR("/Volumes/HyperDrive/JaneProc/Proc4816.shp")
-plot(proc,col="red",add=T)
-
-system.time(tst <- readOGR("/Volumes/HyperDrive/JaneProc/Proc1024Plot69.shp"))
-plot(tst)
-spplot(tst,"band10")
-
-
-
-
+system.time(out_df4 <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
