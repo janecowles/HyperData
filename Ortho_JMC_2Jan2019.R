@@ -33,11 +33,11 @@ library(beepr)
 
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
-#directories for MY MAC
-computer <- 'mac'
-RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
-LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
-ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
+# #directories for MY MAC
+# computer <- 'mac'
+# RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
+# LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
+# ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
 
 #directories for ISBELL PC
 computer <- 'pc'
@@ -164,14 +164,14 @@ centerandends_corr <- function(framex,spectral.data.frame,ProcessedIMU){
 }
 
 
-shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber){
+shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,computer=computer,ProcLoc=ProcLoc){
   plottmp <- subset(PlotShapeFile,PLOTID==plotnum)
   plot_sf <- st_as_sf(plottmp)
   #for now, I want to test if I can see the plot edges as a square within the buffered region
   # plot_buff <- gBuffer(subset(PlotShapeFile,PLOTID==plotnum),width = 0.5)
   # plot_sf <- st_as_sf(plot_buff)
   st_crs(plot_sf)<-st_crs(specdfOUT_sf)
-  plot_clip <- st_intersection(specdfOUT_sf,plot_sf)
+  suppressWarnings(plot_clip <- st_intersection(specdfOUT_sf,plot_sf))
 
   if(dim(plot_clip)[1]>0){
     print(plotnum)
@@ -230,8 +230,14 @@ specdfOUT_sf <- st_as_sf(specdfOUT_sp)
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
 
+cl2<-makeCluster(no_cores)
+# clusterExport(cl2,c("subset","st_as_sf","st_crs","st_intersection","st_write"))
+clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write"),envir=environment())
 
-lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
+parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
+stopCluster(cl2)
+
+# lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
 # lapply(sort(unique(plotshp$RingID)),shpfile_ringloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
@@ -260,15 +266,16 @@ listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(Remote
 
 plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
 
+#listoffilenums[c(25)] took 3158 seconds, a little under an hour
+system.time(out_df24 <- rbindlist(lapply(listoffilenums[c(24)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 
-system.time(out_df4 <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+system.time(out_df26 <- rbindlist(lapply(listoffilenums[c(26)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 
-system.time(out_df2 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-system.time(out_df3 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+system.time(out_df27to29 <- rbindlist(lapply(listoffilenums[c(27,28,29)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 
 
-system.time(out_df1_2_3_4 <- rbindlist(lapply(listoffilenums[c(1,2,3,4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
-system.time(out_df5_6_7_8 <- rbindlist(lapply(listoffilenums[c(5,6,7,8)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+system.time(out_df7 <- rbindlist(lapply(listoffilenums[c(7)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
+system.time(out_d9 <- rbindlist(lapply(listoffilenums[c(9)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 system.time(out_df <- rbindlist(lapply(listoffilenums[c(17)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp)));beep(2)
 
 
