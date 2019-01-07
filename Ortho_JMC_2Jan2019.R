@@ -34,16 +34,16 @@ library(beepr)
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
 # #directories for MY MAC
-# computer <- 'mac'
-# RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
-# LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
-# ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
+computer <- 'mac'
+RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
+LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
+ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
 
 #directories for ISBELL PC
-computer <- 'pc'
-RemoteSenDataLoc <- "F:/RemoteSensing/"
-LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
-ProcLoc <- "F:/JaneProc/"
+# computer <- 'pc'
+# RemoteSenDataLoc <- "F:/RemoteSensing/"
+# LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
+# ProcLoc <- "F:/JaneProc/"
 
 # fakefunction <- function(x){
 #   print(x)
@@ -61,18 +61,49 @@ degtorad <- function(x){x*pi/180} #convert degrees to radians for trig functions
 
 imu <- read.delim(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/imu_gps.txt"))
 overallIMUmin <- min(imu$Alt)
+imuxy <- imu[,c("Lon","Lat")]
+imusp <- SpatialPointsDataFrame(coords=imuxy,data=imu,proj4string = CRS("+init=epsg:4326")) 
+imusp <- spTransform(imusp,"+init=epsg:32615")
+imu <- as.data.frame(imusp[,!names(imusp) %in% c("Lon","Lat")])
+latMinIMU <- imu$Lat[imu$Alt==min(imu$Alt)]
+lonMinIMU <- imu$Lon[imu$Alt==min(imu$Alt)]
 rm(imu)#keep things tidy
 imu.framematch <- read.csv(paste0(LocalSource,"FramexIMU.csv"))
 
 bandtowave <- read.csv(paste0(LocalSource,"BandNumWavelength.csv"))
 
 
+dem1m <- readGDAL(paste0(LocalSource,"DEM 1m/dem_1m_m.bil"))
+dem1m <- spTransform(dem1m,"+init=epsg:32615")
+plotforclip <- spTransform(plotshp,"+init=epsg:32615")
+buffforclip <- bbox(gBuffer(plotforclip,width=25))
+dem_rel <- crop(dem1m,buffforclip)
+rm(dem1m)
+rast <- raster()
+extent(rast) <- extent(dem_rel) 
+ncol(rast) <- round((485627.5-485381.5)/2)
+nrow(rast) <- round((5027983-5027647)/2)
 
-imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,degree=TRUE,coords.epsg){
+# And then ... rasterize it! This creates a grid version 
+# of your points using the cells of rast, values from the IP field:
+dem_rast <- rasterize(dem_rel, rast, dem_rel$band1, fun=mean) 
+crs(dem_rast)<-crs(dem_rel)
+minAlt_dem_atminIMU <- raster::extract(dem_rast,SpatialPoints(cbind(lonMinIMU,latMinIMU)),buffer=2,fun=mean)
+
+imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast){
   
  tmp <- imu.datafile
- 
- tmp$HeightAboveGround <- tmp$Alt-GroundLevel
+ # tmp<-imu.framematch
+ sp.tmpfordem <- SpatialPointsDataFrame(coords=tmp[,c("Lon","Lat")],data=tmp,proj4string = CRS(paste0("+init=epsg:",coords.epsg)))
+sp.tmpTRfordem <- spTransform(sp.tmpfordem,"+init=epsg:32615")
+ dem_alt <- raster::extract(dem_rast,sp.tmpTRfordem,fun=mean,buffer=1,df=T)
+ dem_alt$Frame. <- sp.tmpTRfordem$Frame.
+ dem_alt$DEMAlt <- dem_alt$layer
+ tmp <- merge(imu.datafile,dem_alt,by="Frame.")
+ # tmp <- merge(imu.framematch,dem_alt,by="Frame.")
+ tmp$AdjGroundLevel <- GroundLevel+(tmp$DEMAlt-minAlt_dem_atminIMU)
+ tmp$HeightAboveGround <- tmp$Alt-tmp$AdjGroundLevel
+ tmp$HeightAboveGroundOLD <- tmp$Alt-GroundLevel
  
     if(degree==TRUE){
     tmp$FOVAngle <- degtorad(FOVAngle)
@@ -131,7 +162,7 @@ return(out)
 }
 
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
-Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326)
+Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 rm(imu.framematch)
 
 
