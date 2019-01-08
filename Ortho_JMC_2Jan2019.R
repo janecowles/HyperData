@@ -23,6 +23,7 @@ library(data.table)
 library(tidyr)
 library(gridExtra)
 library(RColorBrewer)
+library(latticeExtra)
 
 #for parallel processing
 library(parallel)
@@ -38,12 +39,13 @@ library(beepr)
 # RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
 # LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
 # ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
-
+# VisLoc <- "/Volumes/HyperDrive/BioCon....."
 #directories for ISBELL PC
 computer <- 'pc'
 RemoteSenDataLoc <- "F:/RemoteSensing/"
 LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
 ProcLoc <- "F:/JaneProc/"
+VisLoc <- "F:/BioCON10Aug--VISUAL/"
 
 # fakefunction <- function(x){
 #   print(x)
@@ -71,20 +73,26 @@ rm(imu)#keep things tidy
 rm(imuxy)
 rm(imusp)
 imu.framematch <- read.csv(paste0(LocalSource,"FramexIMU.csv"))
-imu.framexy <- imu.framematch[,c("Lon","Lat")]
-imu.framesp <- SpatialPointsDataFrame(coords=imu.framexy,data=imu.framematch,proj4string = CRS("+init=epsg:4326")) 
-imu.framesp <- spTransform(imu.framesp,"+init=epsg:32615")
 
 bandtowave <- read.csv(paste0(LocalSource,"BandNumWavelength.csv"))
 
 plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
 
+#don't need to do this again
+# imu.framexy <- imu.framematch[,c("Lon","Lat")]
+# imu.framesp <- SpatialPointsDataFrame(coords=imu.framexy,data=imu.framematch,proj4string = CRS("+init=epsg:4326")) 
+# imu.framesp <- spTransform(imu.framesp,"+init=epsg:32615")
 
-dem1m <- readGDAL(paste0(LocalSource,"DEM 1m/dem_1m_m.bil"))
-dem1m <- spTransform(dem1m,"+init=epsg:32615")
-dem_rel <- crop(dem1m,extent(imu.framesp)+10)
-rm(imusp)
-rm(dem1m)
+# dem1m <- readGDAL(paste0(LocalSource,"DEM 1m/dem_1m_m.bil"))
+# dem1m <- spTransform(dem1m,"+init=epsg:32615")
+# dem_rel <- crop(dem1m,extent(imu.framesp)+10)
+# class(dem_rel)
+# dem_sf <- st_as_sf(dem_rel)
+# st_write(dem_sf,dsn=paste0(ProcLoc,"dem_BIOCON.shp"),layer="dem_BIOCON.shp",driver="ESRI Shapefile",delete_layer=TRUE)
+
+dem_rel <- readOGR(paste0(LocalSource,"dem_BIOCON.shp"))
+dem_rel <- spTransform(dem_rel,"+init=epsg:32615")
+
 rast <- raster()
 extent(rast) <- extent(dem_rel) 
 ncol(rast) <- round((extent(dem_rel)@xmax-extent(dem_rel)@xmin)/2)
@@ -96,7 +104,23 @@ dem_rast <- rasterize(dem_rel, rast, dem_rel$band1, fun=mean)
 crs(dem_rast)<-crs(dem_rel)
 minAlt_dem_atminIMU <- raster::extract(dem_rast,SpatialPoints(cbind(lonMinIMU,latMinIMU)),buffer=2,fun=mean)
 
-raster::extract(dem_rast,SpatialPoints(cbind(485405.1,5027984)))
+
+### biocon vis - read in and crop
+vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
+
+
+# visproj <- projectRaster(vis,crs="+init=epsg:32615 +proj=utm +zone=15 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+system.time(ring1vis <- crop(vis,extent(bbox(subset(plotshp,RingID==1)))+15))
+system.time(ring2vis <- crop(vis,extent(bbox(subset(plotshp,RingID==2)))+15))
+system.time(ring3vis <- crop(vis,extent(bbox(subset(plotshp,RingID==3)))+15))
+system.time(ring4vis <- crop(vis,extent(bbox(subset(plotshp,RingID==4)))+15))
+system.time(ring5vis <- crop(vis,extent(bbox(subset(plotshp,RingID==5)))+15))
+system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+15))
+rm(vis)
+
+
+
 
 imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast){
   
@@ -173,6 +197,7 @@ return(out)
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 rm(imu.framematch)
+# write.csv(Proc_IMU,paste0(LocalSource,"Proc_8Jan2019.csv"),row.names = F)
 
 
 spacing_fun <- function(pix_i,matchimu,specdfframe){
@@ -225,23 +250,82 @@ shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,comput
   }
 }
 
-# shpfile_ringloop <- function(ringnum,specdfOUT_sf,PlotShapeFile,filenumber){
-#   
-#     ring_poly <- as(extent(bbox(subset(PlotShapeFile,RingID==ringnum))),"SpatialPolygons")
-#   ring_buff <- gBuffer(ring_poly,width = 2)
-#   ring_sf <- st_as_sf(ring_buff)
-#   st_crs(ring_sf)<-st_crs(specdfOUT_sf)
-#   ring_clip <- st_intersection(specdfOUT_sf,ring_sf)
-# 
-#   if(dim(ring_clip)[1]>0){
-#     print(ringnum)
-#     if(computer=="mac"){
-#       st_write(ring_clip,dsn=paste0(ProcLoc),layer=paste0("BUFFProc",filenumber,"ring",ringnum),driver="ESRI Shapefile",update=TRUE)}
-#     
-#     if(computer=="pc"){
-#       st_write(ring_clip,dsn=paste0(ProcLoc,"BUFFProc",filenumber,"ring",ringnum,".shp"),layer=paste0("BUFFProc",filenumber,"ring",ringnum),driver="ESRI Shapefile",update=TRUE)}
-# }
-# }
+#######################################################################
+#############to run smaller test runs
+ProcessedIMU=Proc_IMU
+PlotShapeFile=plotshp
+
+filenumber <- 34317
+orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
+spectral.data.frame <- as.data.frame(orig_sp)
+orig_sp <- NULL
+colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
+spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
+sub34317 <- spectral.data.frame[spectral.data.frame$frame%in%c(35000:35500),]
+
+filenumber <- 2816
+orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
+spectral.data.frame <- as.data.frame(orig_sp)
+orig_sp <- NULL
+colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
+spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
+sub2816 <- spectral.data.frame[spectral.data.frame$frame%in%c(3100:3600),]
+rm(spectral.data.frame)
+
+
+ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,framesofinterest){
+  spectral.data.frame<-subdataframe
+  filenumber<-min(framesofinterest)
+  spectral.data.frame$Lat2 <- NA
+  spectral.data.frame$Lon2 <- NA
+  spectral.data.frame$Heading <- NA
+  
+  Sys.time()
+  cl<-makeCluster(no_cores)
+  clusterExport(cl,c("rbindlist","spacing_fun"))
+  specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
+  stopCluster(cl)
+  Sys.time()
+  
+  
+  specdfOUT$StartFrame <- filenumber
+  specdfOUT_xy <- specdfOUT[,c("Lon2","Lat2")]
+  specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
+  # specdfOUT_sf <- st_as_sf(specdfOUT_sp)
+  
+  return(specdfOUT_sp)
+  
+}
+
+
+system.time(proc_3100<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
+system.time(proc_35000<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
+
+
+
+spplot(proc_3100,"nm540.751",cuts=c(300,400,500,600,700,800,900),col.regions=brewer.pal(9,"Set1"))
+
+
+
+rast <- raster()
+extent(rast) <- extent(proc_3100) 
+ncol(rast) <- round(640/3)
+nrow(rast) <- round(500/3)
+
+# And then ... rasterize it! This creates a grid version 
+# of your points using the cells of rast, values from the IP field:
+rast_3100 <- rasterize(proc_3100, rast, proc_3100$nm540.751, fun=mean) 
+crs(rast_3100)<-crs(proc_3100)
+plot(ring2vis)
+plot(rast_3100,add=T)
+
+spplot(ring2vis)+as.layer(spplot(rast_3100))
+spplot(rast_3100)+as.layer(spplot(ring2vis),under=TRUE)
+
+
+##############################################end of test area
+##############################################
+##############################################
 
 
 
@@ -258,21 +342,32 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
     spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
 ### original version
   # spectral.data.frame$frame <- filenumber+spectral.data.frame$y-0.5
-  spectral.data.frame$Lat2 <- NA
-  spectral.data.frame$Lon2 <- NA
-  spectral.data.frame$Heading <- NA
-  cl<-makeCluster(no_cores)
-  clusterExport(cl,c("rbindlist","spacing_fun"))
-  specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
-  stopCluster(cl)
-  specdfOUT$StartFrame <- filenumber
-  # specdfOUT$Lat <- format(specdfOUT$Lat2,digits=20)
-  # specdfOUT$Lon <- format(specdfOUT$Lon2,digits=20)
+    
+    
+    ###FOR SUBSET TESTS
+    # spectral.data.frame <- sub34317
+    # filenumber <- 25000
+    # spectral.data.frame <- sub2816
+    # filenumber <- 3100
+    #run each of these with different corrections on roll,    
+    spectral.data.frame$Lat2 <- NA
+    spectral.data.frame$Lon2 <- NA
+    spectral.data.frame$Heading <- NA
+    
+    Sys.time()
+    cl<-makeCluster(no_cores)
+    clusterExport(cl,c("rbindlist","spacing_fun"))
+    specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
+    stopCluster(cl)
+    Sys.time()
+    
+    
+    specdfOUT$StartFrame <- filenumber
+    specdfOUT_xy <- specdfOUT[,c("Lon2","Lat2")]
+    specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
+    specdfOUT_sf <- st_as_sf(specdfOUT_sp)
 
-  # write.csv(specdfOUT,paste0("/Volumes/HyperDrive/JaneProc/Proc",filenumber,".csv"))
-specdfOUT_xy <- specdfOUT[,c("Lon2","Lat2")]
-specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
-specdfOUT_sf <- st_as_sf(specdfOUT_sp)
+
 
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
@@ -282,25 +377,23 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 # parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
 # stopCluster(cl2)
 
-# lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
-
-# lapply(sort(unique(plotshp$RingID)),shpfile_ringloop,specdfOUT_sf,PlotShapeFile,filenumber)
-
+### lapply(sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber)
 
   if(computer=="mac"){
-    st_write(specdfOUT_sf,dsn=paste0(ProcLoc),layer=paste0("Proc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
+    st_write(specdfOUT_sf,dsn=paste0(ProcLoc),layer=paste0("NEWProc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
     print(filenumber) }else{print("notmac!")}
   
   if(computer=="pc"){
-    st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Proc",filenumber,"full.shp"),layer=paste0("Proc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
+    st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"NEWProc",filenumber,"full.shp"),layer=paste0("NEWProc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
     print(filenumber)}else{print("notpc!")}
 
-means_out <- over(plotshp,specdfOUT_sp,fn=mean)
-means_out$Plot <- 1:nrow(means_out)
-means_out$File <- filenumber
-return(means_out)
+#commenting out for faster test runs
+# means_out <- over(plotshp,specdfOUT_sp,fn=mean)
+# means_out$Plot <- 1:nrow(means_out)
+# means_out$File <- filenumber
+# return(means_out)
   
 
 }
@@ -310,5 +403,7 @@ listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(Remote
 
 
 
-system.time(out_df4 <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+system.time(out_df2 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+system.time(out_df5 <- rbindlist(lapply(listoffilenums[c(5)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+system.time(out_df25 <- rbindlist(lapply(listoffilenums[c(25)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
