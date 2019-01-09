@@ -111,18 +111,18 @@ vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
 
 # visproj <- projectRaster(vis,crs="+init=epsg:32615 +proj=utm +zone=15 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
-system.time(ring1vis <- crop(vis,extent(bbox(subset(plotshp,RingID==1)))+15))
-system.time(ring2vis <- crop(vis,extent(bbox(subset(plotshp,RingID==2)))+15))
-system.time(ring3vis <- crop(vis,extent(bbox(subset(plotshp,RingID==3)))+15))
-system.time(ring4vis <- crop(vis,extent(bbox(subset(plotshp,RingID==4)))+15))
-system.time(ring5vis <- crop(vis,extent(bbox(subset(plotshp,RingID==5)))+15))
-system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+15))
+system.time(ring1vis <- crop(vis,extent(bbox(subset(plotshp,RingID==1)))+30))
+system.time(ring2vis <- crop(vis,extent(bbox(subset(plotshp,RingID==2)))+30))
+system.time(ring3vis <- crop(vis,extent(bbox(subset(plotshp,RingID==3)))+30))
+system.time(ring4vis <- crop(vis,extent(bbox(subset(plotshp,RingID==4)))+30))
+system.time(ring5vis <- crop(vis,extent(bbox(subset(plotshp,RingID==5)))+30))
+system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+30))
 rm(vis)
 
 
 
 
-imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast){
+imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast,YawCorrFactor=0,PitchCorrFactor=0,RollCorrFactor=0){
   
  tmp <- imu.datafile
  # tmp<-imu.framematch
@@ -148,6 +148,16 @@ imuTR <- as.data.frame(sp.tmpTRfordem[,!(names(sp.tmpTRfordem)%in%c("Lon","Lat")
  
  #at each point, this is the FOV
   tmp$UncorrectedFOVmeters <- 2*tmp$HeightAboveGround*tan(tmp$FOVAngle/2)
+  
+  ############## CORRECTIONS/OFFSETS
+  tmp$Roll <- tmp$Roll + RollCorrFactor
+  tmp$Pitch <- tmp$Pitch + PitchCorrFactor
+  tmp$Yaw <- tmp$Yaw + YawCorrFactor
+  
+  
+  
+  
+  
   
   #ROLL -- Negative sign added 1/3/2019 in order to account for the reversal of what happens to the drone and which way the sensor points!
    tmp$Rolloffset <- -tmp$HeightAboveGround*tan(tmp$Roll) #parallel to the frame's long direction (as specified by yaw), therefore:
@@ -316,12 +326,28 @@ nrow(rast) <- round(500/3)
 # of your points using the cells of rast, values from the IP field:
 rast_3100 <- rasterize(proc_3100, rast, proc_3100$nm540.751, fun=mean) 
 crs(rast_3100)<-crs(proc_3100)
-plot(ring2vis)
-plot(rast_3100,add=T)
 
+
+
+plot(ring2vis)
+
+ring2rel <- crop(ring2vis,extent(rast_3100)+3)
+plot(ring2rel)
+
+breakpoints <- c(minValue(rast_3100),minValue(rast_3100)+150,minValue(rast_3100)+250,maxValue(rast_3100))
+mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
+colors <- c(mycol,"magenta","red")
+plot(rast_3100,breaks=breakpoints,col=colors,add=T)
+plot(rast_3100,breaks=breakpoints,col=colors)
+# plot(rast_3100,add=T,col=c("red","orange"))
+plot(plotshp,add=T)
+plot(proc_3100,add=T)
 spplot(ring2vis)+as.layer(spplot(rast_3100))
 spplot(rast_3100)+as.layer(spplot(ring2vis),under=TRUE)
 
+
+plot(subset(plotshp,RingID==2))
+spplot(rast_3100)+as.layer(subset(plotshp,RingID==2))
 
 ##############################################end of test area
 ##############################################
