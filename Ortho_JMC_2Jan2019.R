@@ -153,15 +153,21 @@ imuTR <- as.data.frame(sp.tmpTRfordem[,!(names(sp.tmpTRfordem)%in%c("Lon","Lat")
   tmp$Roll <- tmp$Roll + RollCorrFactor
   tmp$Pitch <- tmp$Pitch + PitchCorrFactor
   tmp$Yaw <- tmp$Yaw + YawCorrFactor
+  tmp$RollCorrFactor <-  RollCorrFactor
+  tmp$PitchCorrFactor <-  PitchCorrFactor
+  tmp$YawCorrFactor <-  YawCorrFactor
   
-  
-  
-  
+  # TESTERS
+  # tmp<-data.frame(nrow=1)
+  # tmp$Roll <- 1
+  # tmp$Pitch <- 1
+  # tmp$Yaw <- degtorad(45)
+  # tmp$HeightAboveGround<-50
   
   
   #ROLL -- Negative sign added 1/3/2019 in order to account for the reversal of what happens to the drone and which way the sensor points!
    tmp$Rolloffset <- -tmp$HeightAboveGround*tan(tmp$Roll) #parallel to the frame's long direction (as specified by yaw), therefore:
-   tmp$RollYComponent <- tmp$Rolloffset*sin(tmp$Yaw) ###(FOR NOW REMOVING THIS NEGATIVE SIGN TO SEE HOW THINGS LOOK!!!!!)
+   tmp$RollYComponent <- -tmp$Rolloffset*sin(tmp$Yaw) ###(FOR NOW REMOVING THIS NEGATIVE SIGN TO SEE HOW THINGS LOOK!!!!!)#### PUTTING IT BACK IN
    tmp$RollXComponent <- tmp$Rolloffset*cos(tmp$Yaw)
    
   #PITCH
@@ -206,7 +212,15 @@ return(out)
 
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
+
+Proc_IMUYawCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.2)
+
+Proc_IMURollCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,RollCorrFactor = 0.01)
+
+Proc_IMUPitchCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,PitchCorrFactor = 0.01)
 rm(imu.framematch)
+
+
 # write.csv(Proc_IMU,paste0(LocalSource,"Proc_8Jan2019.csv"),row.names = F)
 
 
@@ -279,7 +293,7 @@ spectral.data.frame <- as.data.frame(orig_sp)
 orig_sp <- NULL
 colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
 spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
-sub2816 <- spectral.data.frame[spectral.data.frame$frame%in%c(3100:3600),]
+sub2816 <- spectral.data.frame[spectral.data.frame$frame%in%c(3100:4600),]
 rm(spectral.data.frame)
 
 
@@ -303,41 +317,69 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
   specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
   # specdfOUT_sf <- st_as_sf(specdfOUT_sp)
   
-  return(specdfOUT_sp)
+  
+  rast <- raster()
+  extent(rast) <- extent(specdfOUT_sp) 
+  ncol(rast) <- round(640/3)
+  nrow(rast) <- round(500/3)
+  
+  # And then ... rasterize it! This creates a grid version 
+  # of your points using the cells of rast, values from the IP field:
+  rast_specdfOUT_sp <- rasterize(specdfOUT_sp, rast, specdfOUT_sp$nm540.751, fun=mean) 
+  crs(rast_specdfOUT_sp)<-crs(specdfOUT_sp)
+  
+  
+  return(rast_specdfOUT_sp)
   
 }
 
 
-system.time(proc_3100<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
-system.time(proc_35000<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
+Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
+
+# Proc_IMUYawCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.5)
+# 
+# Proc_IMURollCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,RollCorrFactor = -0.02)
+# 
+# Proc_IMUPitchCorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,PitchCorrFactor = -0.02)
+
+system.time(rast_3100<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:4600)));beep(2)
+# system.time(rast_3100YAW<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUYawCorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:4600)));beep(2)
+# system.time(rast_3100ROLL<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMURollCorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:4600)));beep(2)
+# system.time(rast_3100PITCH<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUPitchCorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:4600)));beep(2)
 
 
 
-spplot(proc_3100,"nm540.751",cuts=c(300,400,500,600,700,800,900),col.regions=brewer.pal(9,"Set1"))
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.5, RollCorrFactor = -.07, PitchCorrFactor = 0)
+
+system.time(rast_3100MULTI<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:4600)));beep(2)
+
+
+# system.time(proc_35000<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
 
 
 
-rast <- raster()
-extent(rast) <- extent(proc_3100) 
-ncol(rast) <- round(640/3)
-nrow(rast) <- round(500/3)
+# plot(ring2vis)
+# ring2rel <- crop(ring2vis,extent(rast_3100)+5)
 
-# And then ... rasterize it! This creates a grid version 
-# of your points using the cells of rast, values from the IP field:
-rast_3100 <- rasterize(proc_3100, rast, proc_3100$nm540.751, fun=mean) 
-crs(rast_3100)<-crs(proc_3100)
-
-
-
-plot(ring2vis)
-
-ring2rel <- crop(ring2vis,extent(rast_3100)+3)
 plot(ring2rel)
 
 breakpoints <- c(minValue(rast_3100),minValue(rast_3100)+150,minValue(rast_3100)+250,maxValue(rast_3100))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
-colors <- c(mycol,"magenta","red")
-plot(rast_3100,breaks=breakpoints,col=colors,add=T)
+plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(rast_3100MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+
+
+
+plot(ring2rel)
+plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(rast_3100YAW,breaks=breakpoints,col=c(mycol,"white","darkblue"),add=T)
+plot(ring2rel)
+plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(rast_3100PITCH,breaks=breakpoints,col=c(mycol,"black","grey"),add=T)
+plot(ring2rel)
+plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(rast_3100ROLL,breaks=breakpoints,col=c(mycol,"white","grey"),add=T)
+
 plot(rast_3100,breaks=breakpoints,col=colors)
 # plot(rast_3100,add=T,col=c("red","orange"))
 plot(plotshp,add=T)
