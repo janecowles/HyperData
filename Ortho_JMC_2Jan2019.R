@@ -221,7 +221,7 @@ return(out)
 #note I have min(imu$Alt) -- only works because I have the full imu loaded (instead of the imu file of just the positions with images taken)
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
-rm(imu.framematch)
+# rm(imu.framematch)
 
 
 # write.csv(Proc_IMU,paste0(LocalSource,"Proc_10Jan2019.csv"),row.names = F)
@@ -299,6 +299,25 @@ spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data
 sub2816 <- spectral.data.frame[spectral.data.frame$frame%in%c(3100:3600),]
 rm(spectral.data.frame)
 
+filenumber <- 9200
+orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
+spectral.data.frame <- as.data.frame(orig_sp)
+orig_sp <- NULL
+colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
+spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
+sub9200 <- spectral.data.frame[spectral.data.frame$frame%in%c(10650:11150),]
+rm(spectral.data.frame)
+
+
+filenumber <- 1024
+orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
+spectral.data.frame <- as.data.frame(orig_sp)
+orig_sp <- NULL
+colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
+spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
+sub1024 <- spectral.data.frame[spectral.data.frame$frame%in%c(2200:2700),]
+rm(spectral.data.frame)
+
 
 ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,framesofinterest){
   spectral.data.frame<-subdataframe
@@ -340,29 +359,48 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
 
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .35, RollCorrFactor = -0.065,PitchCorrFactor = 0.00)
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.4, RollCorrFactor = 0.01,PitchCorrFactor = -0.04)
 
-system.time(rast_3100<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
+# system.time(rast_3100<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
+# 
+# system.time(rast_3100MULTI<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
+# 
+# plot(ring2rel)
+# plot(rast_3100MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+# plot(plotshp,add=T)
 
-system.time(rast_3100MULTI<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(3100:3600)));beep(2)
-
-
-system.time(rast_35000<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
-system.time(rast_35000MULTI<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
-
+# system.time(rast_35000<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
+# system.time(rast_35000MULTI<-ortho_funSUB(sub34317,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(35000:35500)));beep(2)
+# 
+# plot(ring2rel)
+# plot(rast_3100MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
 
 
 # plot(ring2vis)
 # ring2rel <- crop(ring2vis,extent(rast_3100)+5)
 
+# 
+# breakpoints <- c(minValue(rast_3100),minValue(rast_3100)+150,minValue(rast_3100)+250,maxValue(rast_3100))
+# mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
+# plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 
-breakpoints <- c(minValue(rast_3100),minValue(rast_3100)+150,minValue(rast_3100)+250,maxValue(rast_3100))
+
+system.time(rast_1024<-ortho_funSUB(sub1024,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(2200:2700)));beep(2)
+system.time(rast_1024MULTI<-ortho_funSUB(sub1024,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(2200:2700)));beep(2)
+
+# plot(ring1vis)
+# ring2rel <- crop(ring2vis,extent(rast_1024MULTI)+5)
+breakpoints <- c(minValue(rast_1024),minValue(rast_1024)+150,minValue(rast_1024)+250,maxValue(rast_1024))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
-plot(rast_3100,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 
 plot(ring2rel)
-plot(rast_3100MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+plot(rast_1024,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 
+plot(rast_1024MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+
+
+n# plot(ring2vis)
+# ring2rel <- crop(ring2vis,extent(rast_3100)+5)
 
 
 
@@ -376,7 +414,7 @@ breakpoints <- c(minValue(rast_35000),minValue(rast_35000)+150,minValue(rast_350
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
 plot(rast_35000,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 plot(rast_35000MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
-
+plot(plotshp,add=T)
 
 
 
@@ -463,7 +501,7 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
     print(filenumber) }else{print("notmac!")}
   
   if(computer=="pc"){
-    st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"NEWProcRollandYawCorr2",filenumber,"full.shp"),layer=paste0("Proc_RollandYawCorr",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
+    st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"NEWProcRollandYawCorr_",filenumber,"full.shp"),layer=paste0("Proc_RollandYawCorr",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
     print(filenumber)}else{print("notpc!")}
 
@@ -480,7 +518,7 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/"))))))
 
 
-system.time(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave));beep(2)
+system.time(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave));beep(2)
 
 system.time(out_df3 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 system.time(out_df5 <- rbindlist(lapply(listoffilenums[c(5)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
