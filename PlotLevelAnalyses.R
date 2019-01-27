@@ -48,20 +48,21 @@ LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
 ProcLoc <- "F:/JaneProc/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 
-plot.files <- list.files(ProcLoc,pattern=".*Plot.*shp")
+# plot.files <- list.files(ProcLoc,pattern=".*Plot.*shp")
+plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*Plot.*shp")
 
-system.time(POI <- readOGR(paste0(ProcLoc,plot.files[2])))
+system.time(POI <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
 plot(POI)
-spplot(POI)
 
 POI_DF <- as.data.frame(POI)
-colnames(POI_DF)<-gsub("_",".",colnames(POI_DF))
-colnames(POI_DF)<-substr(colnames(POI_DF),3,9)
+colnames(POI_DF)[1:272]<-gsub("_",".",colnames(POI_DF)[1:272])
+colnames(POI_DF)[1:272]<-substr(colnames(POI_DF)[1:272],3,9)
 
 setDT(POI_DF)
-
+names(POI_DF)
 POI_DFsub <- POI_DF[,c(1:272,276,277)]
 POI_DFsub$Unique <- 1:nrow(POI_DFsub)
+POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`660.688`)/(POI_DFsub$`800.614`+POI_DFsub$`660.688`)
 POI_DFL<- melt(POI_DFsub,id=c("Lat2","Lon2","Unique"))
 POI_DFL$nm <- as.numeric(substr(POI_DFL$variable,3,9))
 
@@ -71,3 +72,23 @@ ggplot(POI_DFL,aes(nm,value,group=Unique,color=Unique))+geom_line()
 
 # POI_DFL<- melt(POI_DF,patterns=c("nm"),id=c("Lat2","Lon2"))
 str(POI_DFL)
+
+ggplot(POI_DFsub,aes(Lon2,Lat2,color=NDVI))+geom_point()
+
+testCluster <- kmeans(POI_DFsub[, 1:272], 10, nstart = 20)
+testCluster$betweenss
+
+testCluster2 <- kmeans(POI_DFsub[, 1:272], 9, nstart = 20)
+testCluster2$betweenss
+
+testCluster3 <- kmeans(POI_DFsub[, 1:272], 8, nstart = 20)
+testCluster3$betweenss
+
+
+clust_plot <- cbind(POI_DFsub,testCluster$cluster)
+colnames(clust_plot)[ncol(clust_plot)]<-"clust"
+str(clust_plot)
+names(clust_plot)
+ggplot(clust_plot,aes(Lon2,Lat2,color=factor(clust)))+geom_point()
+
+
