@@ -32,6 +32,9 @@ library(parallel)
 #for making a beep noise
 library(beepr)
 
+#for clustering
+library(NbClust)
+
 
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
@@ -48,10 +51,12 @@ LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
 ProcLoc <- "F:/JaneProc/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 
-# plot.files <- list.files(ProcLoc,pattern=".*Plot.*shp")
-plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*Plot.*shp")
+plot.files <- list.files(ProcLoc,pattern=".*BUFF.*Plot.*shp")
+# plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*BUFF.*Plot.*shp")
 
-system.time(POI <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
+system.time(POI <- readOGR(paste0(ProcLoc,plot.files[2])))
+
+# system.time(POI <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
 plot(POI)
 
 POI_DF <- as.data.frame(POI)
@@ -83,6 +88,12 @@ testCluster2$betweenss
 
 testCluster3 <- kmeans(POI_DFsub[, 1:272], 8, nstart = 20)
 testCluster3$betweenss
+
+
+nb <- NbClust(POI_DFsub[, 1:272], diss=NULL, distance = "euclidean", 
+                          min.nc=2, max.nc=10, method = "kmeans", 
+                          index = "all", alphaBeale = 0.1)
+hist(nb$Best.nc[1,], breaks = max(na.omit(nb$Best.nc[1,])))
 
 
 clust_plot <- cbind(POI_DFsub,testCluster$cluster)
