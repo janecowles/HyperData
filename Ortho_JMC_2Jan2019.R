@@ -319,30 +319,30 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
   
 }
 
-sub2816 <- subset_fun(filenumber=2816,framesofinterest=3100:3600)
+system.time(sub22510 <- subset_fun(filenumber=22510,framesofinterest=23900:24300))
 
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
-system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(8000:8500)));beep(2)
+system.time(rast_22510<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24300)));beep(2)
 
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.075,PitchCorrFactor = 0.005)
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.03,PitchCorrFactor = 0.01)
 
-system.time(rast_2816MULTI<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(8000:8500)));beep(2)
-
-
+system.time(rast_22510MULTI<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24300)));beep(2)
 
 
 
 
-# plot(ring1vis)
-# ring2rel <- crop(ring2vis,extent(rast_2816)+5)
-breakpoints <- c(minValue(rast_2816),minValue(rast_2816)+150,minValue(rast_2816)+250,maxValue(rast_2816))
+
+
+# plot(ring4vis)
+# ring4rel <- crop(ring4vis,extent(rast_22510)+5)
+breakpoints <- c(minValue(rast_22510),minValue(rast_22510)+150,minValue(rast_22510)+250,maxValue(rast_22510))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
 
-plot(ring2rel)
-plot(rast_2816,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(ring4rel)
+plot(rast_22510,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 
-plot(rast_2816MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+plot(rast_22510MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
 
 plot(plotshp,add=T)
 
@@ -402,7 +402,7 @@ stopCluster(cl2)
     st_write(specdfOUT_sf,dsn=paste0(ProcLoc),layer=paste0("NEWProc",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
     print(filenumber) }else{print("notmac!")}
-  
+
   if(computer=="pc"){
     st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"CorrFin_",filenumber,"full.shp"),layer=paste0("CorrFin",filenumber,"full"),driver="ESRI Shapefile",delete_layer=TRUE)
     print(Sys.time())
@@ -412,7 +412,15 @@ stopCluster(cl2)
 means_out <- over(plotshp,specdfOUT_sp,fn=mean)
 means_out$Plot <- 1:nrow(means_out)
 means_out$File <- filenumber
-return(means_out)
+
+cv_out <- over(plotshp,specdfOUT_sp,fn=cv,na.rm=T)
+colnames(cv_out)<- paste(colnames(cv_out),"cv",sep="_")
+cv_out$Plot <- 1:nrow(cv_out)
+cv_out$File <- filenumber
+
+tot_out <-cbind(means_out,cv_out)
+
+return(tot_out)
   
 
 }
@@ -426,6 +434,7 @@ Proc_IMU9200 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin
 
 Proc_IMU1024 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.4, RollCorrFactor = 0.01,PitchCorrFactor = -0.04);system.time(out_df1024 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU1024,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
-system.time(lapply(listoffilenums[c(7)],ortho_fun,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave));beep(2)
+Proc_IMU22510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.03,PitchCorrFactor = 0.01);system.time(out_df22510 <- rbindlist(lapply(listoffilenums[c(18)],ortho_fun,ProcessedIMU=Proc_IMU22510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+
 
 

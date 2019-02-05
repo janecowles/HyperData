@@ -51,13 +51,69 @@ LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
 ProcLoc <- "F:/JaneProc/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 
+
+### biocon vis - read in and crop
+vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
+
+
+# visproj <- projectRaster(vis,crs="+init=epsg:32615 +proj=utm +zone=15 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+
+
+
+
+
 plot.files <- list.files(ProcLoc,pattern=".*BUFF.*Plot.*shp")
 # plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*BUFF.*Plot.*shp")
 
 system.time(POI <- readOGR(paste0(ProcLoc,plot.files[2])))
 
-# system.time(POI <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
-plot(POI)
+# system.time(POI_64 <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
+# system.time(POI_68 <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[4])))
+# 
+# 
+# POI_64_DF <- as.data.frame(POI_64)
+# colnames(POI_64_DF)[1:272]<-gsub("_",".",colnames(POI_64_DF)[1:272])
+# colnames(POI_64_DF)[1:272]<-substr(colnames(POI_64_DF)[1:272],3,9)
+# 
+# setDT(POI_64_DF)
+# POI_64_DFsub <- POI_64_DF[,c(1:272,276,277)]
+# POI_64_DFsub$Unique <- 1:nrow(POI_64_DFsub)
+# POI_64_DFsub$NDVI <- (POI_64_DFsub$`800.614`-POI_64_DFsub$`660.688`)/(POI_64_DFsub$`800.614`+POI_64_DFsub$`660.688`)
+# 
+# POI_68_DF <- as.data.frame(POI_68)
+# colnames(POI_68_DF)[1:272]<-gsub("_",".",colnames(POI_68_DF)[1:272])
+# colnames(POI_68_DF)[1:272]<-substr(colnames(POI_68_DF)[1:272],3,9)
+# 
+# setDT(POI_68_DF)
+# POI_68_DFsub <- POI_68_DF[,c(1:272,276,277)]
+# POI_68_DFsub$Unique <- 1:nrow(POI_68_DFsub)
+# POI_68_DFsub$NDVI <- (POI_68_DFsub$`800.614`-POI_68_DFsub$`660.688`)/(POI_68_DFsub$`800.614`+POI_68_DFsub$`660.688`)
+# 
+# 
+# par(mfrow=c(1,2))
+# hist(POI_64_DFsub$NDVI)
+# hist(POI_68_DFsub$NDVI)
+
+
+rast <- raster()
+extent(rast) <- extent(POI) 
+ncol(rast) <-25
+nrow(rast) <- 25
+
+POI_rast <- rasterize(POI, rast, POI$nm540_751, fun=mean) 
+plot(POI_rast)
+
+system.time(RELPLOT <- crop(vis,extent(bbox(subset(plotshp,PLOTID==104)))+1))
+
+
+plot(PLOT)
+breakpoints <- c(minValue(POI_rast),minValue(POI_rast)+50,minValue(POI_rast)+100,maxValue(POI_rast))
+mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
+
+plot(RELPLOT)
+plot(POI_rast,breaks=breakpoints,col=c("blue","yellow","red"),add=T)
+
 
 POI_DF <- as.data.frame(POI)
 colnames(POI_DF)[1:272]<-gsub("_",".",colnames(POI_DF)[1:272])
@@ -67,7 +123,7 @@ setDT(POI_DF)
 names(POI_DF)
 POI_DFsub <- POI_DF[,c(1:272,276,277)]
 POI_DFsub$Unique <- 1:nrow(POI_DFsub)
-POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`660.688`)/(POI_DFsub$`800.614`+POI_DFsub$`660.688`)
+POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`669.572`)/(POI_DFsub$`800.614`+POI_DFsub$`669.572`)
 POI_DFL<- melt(POI_DFsub,id=c("Lat2","Lon2","Unique"))
 POI_DFL$nm <- as.numeric(substr(POI_DFL$variable,3,9))
 
