@@ -34,7 +34,8 @@ library(beepr)
 
 #for clustering
 library(NbClust)
-
+library(cluster)
+library(factoextra)
 
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
@@ -66,34 +67,18 @@ vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
 plot.files <- list.files(ProcLoc,pattern=".*BUFF.*Plot.*shp")
 # plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*BUFF.*Plot.*shp")
 
-system.time(POI <- readOGR(paste0(ProcLoc,plot.files[2])))
+system.time(POI <- readOGR(paste0(ProcLoc,plot.files[58])))
+POI$NDVI <- (POI$nm800_614-POI$nm660_688)/(POI$nm800_614+POI$nm660_688)
 
-# system.time(POI_64 <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[2])))
-# system.time(POI_68 <- readOGR(paste0("~/Downloads/plotshapestmp/",plot.files[4])))
-# 
-# 
-# POI_64_DF <- as.data.frame(POI_64)
-# colnames(POI_64_DF)[1:272]<-gsub("_",".",colnames(POI_64_DF)[1:272])
-# colnames(POI_64_DF)[1:272]<-substr(colnames(POI_64_DF)[1:272],3,9)
-# 
-# setDT(POI_64_DF)
-# POI_64_DFsub <- POI_64_DF[,c(1:272,276,277)]
-# POI_64_DFsub$Unique <- 1:nrow(POI_64_DFsub)
-# POI_64_DFsub$NDVI <- (POI_64_DFsub$`800.614`-POI_64_DFsub$`660.688`)/(POI_64_DFsub$`800.614`+POI_64_DFsub$`660.688`)
-# 
-# POI_68_DF <- as.data.frame(POI_68)
-# colnames(POI_68_DF)[1:272]<-gsub("_",".",colnames(POI_68_DF)[1:272])
-# colnames(POI_68_DF)[1:272]<-substr(colnames(POI_68_DF)[1:272],3,9)
-# 
-# setDT(POI_68_DF)
-# POI_68_DFsub <- POI_68_DF[,c(1:272,276,277)]
-# POI_68_DFsub$Unique <- 1:nrow(POI_68_DFsub)
-# POI_68_DFsub$NDVI <- (POI_68_DFsub$`800.614`-POI_68_DFsub$`660.688`)/(POI_68_DFsub$`800.614`+POI_68_DFsub$`660.688`)
-# 
-# 
-# par(mfrow=c(1,2))
-# hist(POI_64_DFsub$NDVI)
-# hist(POI_68_DFsub$NDVI)
+POI_DF <- as.data.frame(POI)
+colnames(POI_DF)[1:272]<-gsub("_",".",colnames(POI_DF)[1:272])
+colnames(POI_DF)[1:272]<-substr(colnames(POI_DF)[1:272],3,9)
+
+setDT(POI_DF)
+POI_DFsub <- POI_DF[,c(1:272,276,277)]
+POI_DFsub$Unique <- 1:nrow(POI_DFsub)
+POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`660.688`)/(POI_DFsub$`800.614`+POI_DFsub$`660.688`)
+hist(POI_DFsub$NDVI)
 
 
 rast <- raster()
@@ -101,11 +86,10 @@ extent(rast) <- extent(POI)
 ncol(rast) <-25
 nrow(rast) <- 25
 
-POI_rast <- rasterize(POI, rast, POI$nm540_751, fun=mean) 
+POI_rast <- rasterize(POI, rast, POI$NDVI, fun=mean) 
 plot(POI_rast)
 
 system.time(RELPLOT <- crop(vis,extent(bbox(subset(plotshp,PLOTID==104)))+1))
-
 
 plot(PLOT)
 breakpoints <- c(minValue(POI_rast),minValue(POI_rast)+50,minValue(POI_rast)+100,maxValue(POI_rast))
@@ -115,17 +99,8 @@ plot(RELPLOT)
 plot(POI_rast,breaks=breakpoints,col=c("blue","yellow","red"),add=T)
 
 
-POI_DF <- as.data.frame(POI)
-colnames(POI_DF)[1:272]<-gsub("_",".",colnames(POI_DF)[1:272])
-colnames(POI_DF)[1:272]<-substr(colnames(POI_DF)[1:272],3,9)
-
-setDT(POI_DF)
-names(POI_DF)
-POI_DFsub <- POI_DF[,c(1:272,276,277)]
-POI_DFsub$Unique <- 1:nrow(POI_DFsub)
-POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`669.572`)/(POI_DFsub$`800.614`+POI_DFsub$`669.572`)
-POI_DFL<- melt(POI_DFsub,id=c("Lat2","Lon2","Unique"))
-POI_DFL$nm <- as.numeric(substr(POI_DFL$variable,3,9))
+POI_DFL<- melt(POI_DFsub,id=c("Lat2","Lon2","Unique","NDVI"))
+POI_DFL$nm <- as.numeric(as.character(POI_DFL$variable))
 
 plot(value~nm,POI_DFL)
 
@@ -136,8 +111,8 @@ str(POI_DFL)
 
 ggplot(POI_DFsub,aes(Lon2,Lat2,color=NDVI))+geom_point()
 
-testCluster <- kmeans(POI_DFsub[, 1:272], 10, nstart = 20)
-testCluster$betweenss
+testCluster <- kmeans(POI_DFsub[, 1:272], 2, nstart = 20)
+fvis_cluster()
 
 testCluster2 <- kmeans(POI_DFsub[, 1:272], 9, nstart = 20)
 testCluster2$betweenss
@@ -151,8 +126,9 @@ nb <- NbClust(POI_DFsub[, 1:272], diss=NULL, distance = "euclidean",
                           index = "all", alphaBeale = 0.1)
 hist(nb$Best.nc[1,], breaks = max(na.omit(nb$Best.nc[1,])))
 
+?cluster
 
-clust_plot <- cbind(POI_DFsub,testCluster$cluster)
+clust_plot <- cbind(POI_DFsub,nb$Best.partition)
 colnames(clust_plot)[ncol(clust_plot)]<-"clust"
 str(clust_plot)
 names(clust_plot)
