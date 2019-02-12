@@ -31,6 +31,8 @@ library(parallel)
 #for making a beep noise
 library(beepr)
 
+#for read.ENVI in case better/quicker
+library(hyperSpec)
 
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
@@ -146,13 +148,7 @@ imuTR <- as.data.frame(sp.tmpTRfordem[,!(names(sp.tmpTRfordem)%in%c("Lon","Lat")
   tmp$UncorrectedFOVmeters <- 2*tmp$HeightAboveGround*tan(tmp$FOVAngle/2)
   
   ############## CORRECTIONS/OFFSETS
-  # tmp$Roll <- tmp$Roll * RollCorrFactor
-  # tmp$Pitch <- tmp$Pitch * PitchCorrFactor
-  # tmp$Yaw <- tmp$Yaw * YawCorrFactor
-  
-  # tmp$Roll <- tmp$Roll + (tmp$Roll * RollCorrFactor)
-  # tmp$Pitch <- tmp$Pitch + (tmp$Pitch * PitchCorrFactor)
-  # tmp$Yaw <- tmp$Yaw + (tmp$Yaw * YawCorrFactor)
+
   tmp$Roll <- tmp$Roll + RollCorrFactor
   tmp$Pitch <- tmp$Pitch + PitchCorrFactor
   tmp$Yaw <- tmp$Yaw + YawCorrFactor
@@ -163,11 +159,12 @@ imuTR <- as.data.frame(sp.tmpTRfordem[,!(names(sp.tmpTRfordem)%in%c("Lon","Lat")
   
   # TESTING (ignore)
   # tmp<-data.frame(nrow=1)
-  # tmp$Roll <- 1
-  # tmp$Pitch <- 1
+  # tmp$Roll <- degtorad(5)
+  # tmp$Pitch <- degtorad(5)
   # tmp$Yaw <- degtorad(45)
   # tmp$HeightAboveGround<-50
-  
+  # tmp$FOVAngle <- degtorad(15.9619)
+
   
   #ROLL -- Negative sign added 1/3/2019 in order to account for the reversal of what happens to the drone and which way the sensor points!
    tmp$Rolloffset <- -tmp$HeightAboveGround*tan(tmp$Roll) #parallel to the frame's long direction (as specified by yaw), therefore:
@@ -201,7 +198,7 @@ tmp$RollCorrectedFOVmeters <- Tri1Base + Tri2Base
 
 #Yaw offset -- used in finding the endpoints -- left side will use -x and +y, right side will use +x and -y (with +yaw) -- Or vice versa -- check on this later -- I believe I swapped this around in the later code.
 tmp$YawYOffset<-0.5*tmp$RollCorrectedFOVmeters*sin(tmp$Yaw)
-tmp$YawXOffset<-0.5*tmp$RollCorrectedFOVmeters*cos(tmp$Yaw)
+tmp$YawXOffset<- -0.5*tmp$RollCorrectedFOVmeters*cos(tmp$Yaw) #this is negative of y
   
 sp.tmp <- SpatialPointsDataFrame(coords=tmp[,c("Lon","Lat")],data=tmp,proj4string = CRS("+init=epsg:32615"))
 
@@ -224,24 +221,18 @@ Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOV
 spacing_fun <- function(pix_i,matchimu,specdfframe){
   specdfpix <- specdfframe[specdfframe$x==pix_i,]
   
-  ########### THINK ABOUT THIS
-  ########### Do I need to flip the + and - here to get these in the right direction. Should it be +Y and -X?????
-  ########### (because the images are just perfectly flipped...so, yes they do)
-  
-  
-  #Original!!!!
-  # specdfpix$Lat2<-matchimu$Lat+matchimu$TotMidPointCorrectionY+matchimu$YawYOffset-(pix_i*2*matchimu$YawYOffset/640)
-  # specdfpix$Lon2<-matchimu$Lon+matchimu$TotMidPointCorrectionX-matchimu$YawXOffset+(pix_i*2*matchimu$YawXOffset/640)
 
-  #ALTERED -- should be complete reversal of the yaw stuff. Maybe also the midpoint, but I did NOT do that here.
+  
+  
+# if things are numbered the reverse of what they are (everything in these files is completely turned around because frame = 2000 is Y=0 so x goes 640->0), then needs to be switching +/- of the yaw stuff.
   specdfpix$Lat2<-matchimu$Lat+matchimu$TotMidPointCorrectionY-matchimu$YawYOffset+(pix_i*2*matchimu$YawYOffset/640)
-  specdfpix$Lon2<-matchimu$Lon+matchimu$TotMidPointCorrectionX+matchimu$YawXOffset-(pix_i*2*matchimu$YawXOffset/640)
+  specdfpix$Lon2<-matchimu$Lon+matchimu$TotMidPointCorrectionX-matchimu$YawXOffset+(pix_i*2*matchimu$YawXOffset/640)
   specdfpix$Heading <- matchimu$Heading
 
   return(specdfpix)
 }
 
-centerandends_corr <- function(framex,spectral.data.frame,ProcessedIMU){
+byframe_corr <- function(framex,spectral.data.frame,ProcessedIMU){
    specdfframe <- spectral.data.frame[spectral.data.frame$frame==framex,]
     matchimu <- ProcessedIMU[ProcessedIMU$Frame.==framex,]
     specdfframebypix <- rbindlist(lapply(sort(unique(specdfframe$x)),spacing_fun,matchimu,specdfframe))
@@ -293,7 +284,7 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
   Sys.time()
   cl<-makeCluster(no_cores)
   clusterExport(cl,c("rbindlist","spacing_fun"))
-  specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
+  specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),byframe_corr,spectral.data.frame,ProcessedIMU))
   stopCluster(cl)
   Sys.time()
   
@@ -319,24 +310,20 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
   
 }
 
-system.time(sub22510 <- subset_fun(filenumber=22510,framesofinterest=23900:24300))
+system.time(sub22510 <- subset_fun(filenumber=22510,framesofinterest=23900:24500))
 
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
-system.time(rast_22510<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24300)));beep(2)
+system.time(rast_22510<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24500)));beep(2)
 
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.03,PitchCorrFactor = 0.01)
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.028,PitchCorrFactor = 0.015)
 
-system.time(rast_22510MULTI<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24300)));beep(2)
-
-
-
-
+system.time(rast_22510MULTI<-ortho_funSUB(sub22510,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(23900:24500)));beep(2)
 
 
 # plot(ring4vis)
-# ring4rel <- crop(ring4vis,extent(rast_22510)+5)
-breakpoints <- c(minValue(rast_22510),minValue(rast_22510)+150,minValue(rast_22510)+250,maxValue(rast_22510))
+ring4rel <- crop(ring4vis,extent(rast_22510)+5)
+breakpoints <- c(minValue(rast_22510),minValue(rast_22510)+150,minValue(rast_22510)+200,maxValue(rast_22510))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
 
 plot(ring4rel)
@@ -348,11 +335,43 @@ plot(plotshp,add=T)
 
 
 
+system.time(sub24510 <- subset_fun(filenumber=24510,framesofinterest=25900:26500))
+
+Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
+
+system.time(rast_24510<-ortho_funSUB(sub24510,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(25900:26500)));beep(2)
+
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = 0.019,PitchCorrFactor = -0.025)
+
+system.time(rast_24510MULTI<-ortho_funSUB(sub24510,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(25900:26500)));beep(2)
+
+
+
+
+
+
+# plot(ring4vis)
+# ring4rel <- crop(ring4vis,extent(rast_24510)+5)
+breakpoints <- c(minValue(rast_24510),minValue(rast_24510)+150,minValue(rast_24510)+200,maxValue(rast_24510))
+mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
+
+plot(ring4rel)
+plot(rast_24510,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+
+plot(rast_24510MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+
+plot(plotshp,add=T)
+
+
+
 
 ##############################################end of test area
 ##############################################
 ##############################################
 
+
+system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510)))
+system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
 
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
@@ -363,13 +382,11 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
   ### change colnames using the bandname to wavelength csv I made
   colnames(spectral.data.frame)[1:272]<-paste0("nm",bandtowave$Wavelength)
   
-  #### here is where I want to FLIP IT!!!!
-  ###flipped version -- is correct.
+  #### this reads in where the min frame is asigned the largest number (at the top of the screen, often the largest is 2000). Therefore need to have y = 2000 = min frame number. This will do that. The number added is greater when y is smaller. for instance for file = 22510, when y = 2000, frame=22510. when y = 0, frame=24509. Note that y's are e.g. 0.5 up to 2000.5 because of the structure (puts the point in the middle of the pixel.) If we didn't do this max()-value element (aka y goes up as frame# goes up) you need to add 0.5 to the formula to match it.
+  
     spectral.data.frame$frame <- filenumber+max(spectral.data.frame$y)-spectral.data.frame$y
-### original version
-  # spectral.data.frame$frame <- filenumber+spectral.data.frame$y-0.5
     
-    
+    #to fill in with the next function.
     spectral.data.frame$Lat2 <- NA
     spectral.data.frame$Lon2 <- NA
     spectral.data.frame$Heading <- NA
@@ -377,7 +394,7 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
     Sys.time()
     cl<-makeCluster(no_cores)
     clusterExport(cl,c("rbindlist","spacing_fun"))
-    specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),centerandends_corr,spectral.data.frame,ProcessedIMU))
+    specdfOUT<- rbindlist(parLapply(cl,sort(unique(spectral.data.frame$frame)),byframe_corr,spectral.data.frame,ProcessedIMU))
     stopCluster(cl)
     Sys.time()
     
@@ -434,7 +451,8 @@ Proc_IMU9200 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin
 
 Proc_IMU1024 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.4, RollCorrFactor = 0.01,PitchCorrFactor = -0.04);system.time(out_df1024 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU1024,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
-Proc_IMU22510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.03,PitchCorrFactor = 0.01);system.time(out_df22510 <- rbindlist(lapply(listoffilenums[c(18)],ortho_fun,ProcessedIMU=Proc_IMU22510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+Proc_IMU22510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.028,PitchCorrFactor = 0.015);system.time(out_df22510 <- rbindlist(lapply(listoffilenums[c(18)],ortho_fun,ProcessedIMU=Proc_IMU22510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
+Proc_IMU24510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = 0.019,PitchCorrFactor = -0.025);system.time(out_df24510 <- rbindlist(lapply(listoffilenums[c(19)],ortho_fun,ProcessedIMU=Proc_IMU24510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 
-
+plot(c(1,1))
