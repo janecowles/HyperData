@@ -158,12 +158,21 @@ imuTR <- as.data.frame(sp.tmpTRfordem[,!(names(sp.tmpTRfordem)%in%c("Lon","Lat")
   tmp$YawCorrFactor <-  YawCorrFactor
   
   # TESTING (ignore)
+<<<<<<< HEAD
   # tmp<-data.frame(nrow=1)
   # tmp$Roll <- degtorad(5)
   # tmp$Pitch <- degtorad(5)
   # tmp$Yaw <- degtorad(45)
   # tmp$HeightAboveGround<-50
   # tmp$FOVAngle <- degtorad(15.9619)
+=======
+  tmp<-data.frame(nrow=1)
+  tmp$Roll <- degtorad(5)
+  tmp$Pitch <- degtorad(5)
+  tmp$Yaw <- degtorad(45)
+  tmp$HeightAboveGround<-50
+  tmp$FOVAngle <- degtorad(15.9619)
+>>>>>>> 78b764e490b6cec4d657edfe631edc4c893e4088
 
   
   #ROLL -- Negative sign added 1/3/2019 in order to account for the reversal of what happens to the drone and which way the sensor points!
