@@ -67,7 +67,18 @@ vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
 plot.files <- list.files(ProcLoc,pattern=".*BUFF.*Plot.*shp")
 # plot.files <- list.files("~/Downloads/plotshapestmp",pattern=".*BUFF.*Plot.*shp")
 
-system.time(POI <- readOGR(paste0(ProcLoc,plot.files[58])))
+plot.filesdf <- data.frame(plot.files)
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-4-n+1, nchar(x)-4)
+}
+plot.filesdf$Plots <- substrRight(as.character(plot.filesdf$plot.files),3)
+plot.filesdf$Plots <- as.numeric(gsub("[^0-9]", "", plot.filesdf$Plots)) 
+plot.filesdf[plot.filesdf$Plots%in%c(46,77,142,146,229,237,271,327),]
+plot.filesdf[plot.filesdf$Plots%in%c(25,61,73,182,217,284,289,367,368,369,370,371),]
+
+
+system.time(POI <- readOGR(paste0(ProcLoc,plot.filesdf[217,1])))
 POI$NDVI <- (POI$nm800_614-POI$nm660_688)/(POI$nm800_614+POI$nm660_688)
 
 POI_DF <- as.data.frame(POI)
@@ -79,6 +90,9 @@ POI_DFsub <- POI_DF[,c(1:272,276,277)]
 POI_DFsub$Unique <- 1:nrow(POI_DFsub)
 POI_DFsub$NDVI <- (POI_DFsub$`800.614`-POI_DFsub$`660.688`)/(POI_DFsub$`800.614`+POI_DFsub$`660.688`)
 hist(POI_DFsub$NDVI)
+POI_long <- melt(POI_DFsub, id.vars=c("Lat2","Lon2","Unique","NDVI"),measure.vars=c(1:272))
+
+ggplot(POI_long,aes(variable,value,group=Unique,color=Unique))+geom_line()+labs(title='POI')
 
 
 rast <- raster()
@@ -89,14 +103,45 @@ nrow(rast) <- 25
 POI_rast <- rasterize(POI, rast, POI$NDVI, fun=mean) 
 plot(POI_rast)
 
-system.time(RELPLOT <- crop(vis,extent(bbox(subset(plotshp,PLOTID==104)))+1))
 
-plot(PLOT)
-breakpoints <- c(minValue(POI_rast),minValue(POI_rast)+50,minValue(POI_rast)+100,maxValue(POI_rast))
+system.time(POI2 <- readOGR(paste0(ProcLoc,plot.filesdf[309,1])))
+POI2$NDVI <- (POI2$nm800_614-POI2$nm660_688)/(POI2$nm800_614+POI2$nm660_688)
+
+POI2_DF <- as.data.frame(POI2)
+colnames(POI2_DF)[1:272]<-gsub("_",".",colnames(POI2_DF)[1:272])
+colnames(POI2_DF)[1:272]<-substr(colnames(POI2_DF)[1:272],3,9)
+
+setDT(POI2_DF)
+POI2_DFsub <- POI2_DF[,c(1:272,276,277)]
+POI2_DFsub$Unique <- 1:nrow(POI2_DFsub)
+POI2_DFsub$NDVI <- (POI2_DFsub$`800.614`-POI2_DFsub$`660.688`)/(POI2_DFsub$`800.614`+POI2_DFsub$`660.688`)
+hist(POI2_DFsub$NDVI)
+POI2_long <- melt(POI2_DFsub, id.vars=c("Lat2","Lon2","Unique","NDVI"),measure.vars=c(1:272))
+
+ggplot(POI2_long,aes(variable,value,group=Unique,color=Unique))+geom_line()+labs(title='POI2')
+
+
+rast <- raster()
+extent(rast) <- extent(POI2) 
+ncol(rast) <-25
+nrow(rast) <- 25
+
+POI2_rast <- rasterize(POI2, rast, POI2$NDVI, fun=mean) 
+par(mfrow=c(1,2))
+plot(POI_rast)
+plot(POI2_rast)
+
+
+
+
+system.time(RELPLOT <- crop(vis,extent(bbox(subset(plotshp,PLOTID==73)))+1))
+
+plot(RELPLOT)
+breakpoints <- c(minValue(POI_rast),minValue(POI_rast)+0.130,minValue(POI_rast)+0.150,maxValue(POI_rast))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
 
 plot(RELPLOT)
-plot(POI_rast,breaks=breakpoints,col=c("blue","yellow","red"),add=T)
+plot(POI_rast,breaks=breakpoints,col=c(mycol,"blue","yellow","red"),add=T)
 
 
 POI_DFL<- melt(POI_DFsub,id=c("Lat2","Lon2","Unique","NDVI"))
@@ -109,15 +154,19 @@ ggplot(POI_DFL,aes(nm,value,group=Unique,color=Unique))+geom_line()
 # POI_DFL<- melt(POI_DF,patterns=c("nm"),id=c("Lat2","Lon2"))
 str(POI_DFL)
 
-ggplot(POI_DFsub,aes(Lon2,Lat2,color=NDVI))+geom_point()
+ggplot(POI2_DFsub,aes(Lon2,Lat2,color=NDVI))+geom_point()
+
+testCluster <- kmeans(POI2_DFsub[, 1:272], 2, nstart = 20)
+fviz_cluster(testCluster,POI2_DFsub[,1:272])
 
 testCluster <- kmeans(POI_DFsub[, 1:272], 2, nstart = 20)
-fvis_cluster()
+fviz_cluster(testCluster,POI_DFsub[,1:272])
+
 
 testCluster2 <- kmeans(POI_DFsub[, 1:272], 9, nstart = 20)
 testCluster2$betweenss
 
-testCluster3 <- kmeans(POI_DFsub[, 1:272], 8, nstart = 20)
+testCluster3 <- kmeans(POI_DFsub[, 1:272], 2, nstart = 20)
 testCluster3$betweenss
 
 
@@ -130,8 +179,15 @@ hist(nb$Best.nc[1,], breaks = max(na.omit(nb$Best.nc[1,])))
 
 clust_plot <- cbind(POI_DFsub,nb$Best.partition)
 colnames(clust_plot)[ncol(clust_plot)]<-"clust"
-str(clust_plot)
-names(clust_plot)
 ggplot(clust_plot,aes(Lon2,Lat2,color=factor(clust)))+geom_point()
 
+nb2 <- NbClust(POI2_DFsub[, 1:272], diss=NULL, distance = "euclidean", 
+              min.nc=2, max.nc=5, method = "kmeans", 
+              index = "all", alphaBeale = 0.1)
+hist(nb2$Best.nc[1,], breaks = max(na.omit(nb2$Best.nc[1,])))
 
+?cluster
+
+clust_plot2 <- cbind(POI2_DFsub,nb2$Best.partition)
+colnames(clust_plot2)[ncol(clust_plot2)]<-"clust"
+ggplot(clust_plot2,aes(Lon2,Lat2,color=factor(clust)))+geom_point()
