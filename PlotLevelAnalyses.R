@@ -78,6 +78,10 @@ plot.filesdf[plot.filesdf$Plots%in%c(46,77,142,146,229,237,271,327),]
 plot.filesdf[plot.filesdf$Plots%in%c(25,61,73,182,217,284,289,367,368,369,370,371),]
 plot.filesdf[plot.filesdf$Plots%in%c(256),]
 
+plot.filesdf$Frames1 <- substrRight(as.character(plot.filesdf$plot.files),13)
+plot.filesdf$Frames <- substr(as.character(plot.filesdf$Frames1),1,8)
+plot.filesdf$Frames <- as.numeric(gsub("[^0-9]", "", plot.filesdf$Frames))
+unique(plot.filesdf$Frames)
 
 system.time(POI <- readOGR(paste0(ProcLoc,plot.filesdf[197,1])))
 POI$NDVI <- (POI$nm800_614-POI$nm660_688)/(POI$nm800_614+POI$nm660_688)
