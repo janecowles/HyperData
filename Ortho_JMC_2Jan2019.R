@@ -436,9 +436,11 @@ listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(Remote
 Proc_IMU2816 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.075,PitchCorrFactor = 0.005);system.time(out_df2816 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMU2816,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(3)
 write.csv(out_df2816,"~/out_df2816.csv")
 rm(list=c("Proc_IMU2816","out_df2816"))
+
 Proc_IMU9200 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.16, RollCorrFactor = 0.01,PitchCorrFactor = -0.04);system.time(out_df9200 <- rbindlist(lapply(listoffilenums[c(9)],ortho_fun,ProcessedIMU=Proc_IMU9200,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df9200,"~/out_df9200.csv")
 rm(list=c("Proc_IMU9200","out_df9200"))
+
 Proc_IMU1024 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.4, RollCorrFactor = 0.01,PitchCorrFactor = -0.04);system.time(out_df1024 <- rbindlist(lapply(listoffilenums[c(2)],ortho_fun,ProcessedIMU=Proc_IMU1024,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df1024,"~/out_df1024.csv")
 rm(list=c("Proc_IMU1024","out_df1024"))
@@ -446,6 +448,8 @@ rm(list=c("Proc_IMU1024","out_df1024"))
 Proc_IMU22510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.028,PitchCorrFactor = 0.015);system.time(out_df22510 <- rbindlist(lapply(listoffilenums[c(18)],ortho_fun,ProcessedIMU=Proc_IMU22510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df22510,"~/out_df22510.csv")
 rm(list=c("Proc_IMU22510","out_df22510"))
+
+
 
 Proc_IMU24510 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = 0.025,PitchCorrFactor = -0.025);system.time(out_df24510 <- rbindlist(lapply(listoffilenums[c(19)],ortho_fun,ProcessedIMU=Proc_IMU24510,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df24510,"~/out_df24510.csv")
@@ -460,21 +464,25 @@ write.csv(out_df39773,"~/out_df39773.csv")
 rm(list=c("Proc_IMU39773","out_df39773"))
 
 
-###i ran the next two the below with no file creation, just creating the plot level metrics
 
 Proc_IMU37901 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.04,PitchCorrFactor = 0.02);system.time(out_df37901 <- rbindlist(lapply(listoffilenums[c(27)],ortho_fun,ProcessedIMU=Proc_IMU37901,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
+write.csv(out_df37901,"~/out_df37901.csv")
+rm(list=c("Proc_IMU37901","out_df37901"))
 
 Proc_IMU41565 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = 0.025,PitchCorrFactor = 0.01);system.time(out_df41565 <- rbindlist(lapply(listoffilenums[c(29)],ortho_fun,ProcessedIMU=Proc_IMU41565,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df41565,"~/out_df41565.csv")
 rm(list=c("Proc_IMU41565","out_df41565"))
+
+
 Proc_IMU36109 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.045,PitchCorrFactor = -0.02);system.time(out_df36109 <- rbindlist(lapply(listoffilenums[c(26)],ortho_fun,ProcessedIMU=Proc_IMU36109,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df36109,"~/out_df36109.csv")
 rm(list=c("Proc_IMU36109","out_df36109"))
+
 Proc_IMU34317 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = 0.025,PitchCorrFactor = 0.005);system.time(out_df34317 <- rbindlist(lapply(listoffilenums[c(25)],ortho_fun,ProcessedIMU=Proc_IMU34317,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df34317,"~/out_df34317.csv")
 rm(list=c("Proc_IMU34317","out_df34317"))
 
-### 4 17 2019
+### THESE NEXT (TOMORROW MORNING!)
 Proc_IMU4832 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0.48, RollCorrFactor = -0.032,PitchCorrFactor = 0.055);system.time(out_df4832 <- rbindlist(lapply(listoffilenums[c(5)],ortho_fun,ProcessedIMU=Proc_IMU4832,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df4832,"~/out_df4832.csv")
 rm(list=c("Proc_IMU4832","out_df4832"))
@@ -494,7 +502,6 @@ write.csv(out_df16847,"~/out_df16847.csv")
 rm(list=c("Proc_IMU16847","out_df16847"))
 
 
-#NEED TO RUN 5/5
 Proc_IMU20718 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = -0.05, RollCorrFactor = -0.015,PitchCorrFactor = -0.02);system.time(out_df20718 <- rbindlist(lapply(listoffilenums[c(17)],ortho_fun,ProcessedIMU=Proc_IMU20718,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(2)
 write.csv(out_df20718,"~/out_df20718.csv")
 rm(list=c("Proc_IMU20718","out_df20718"))
