@@ -44,7 +44,7 @@ library(hyperSpec)
 computer <- 'pc'
 RemoteSenDataLoc <- "F:/RemoteSensing/"
 LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
-ProcLoc <- "F:/JaneProcFINAL/"
+ProcLoc <- "F:/Corrections to Final/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 
 
@@ -315,27 +315,27 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
 
 
 
-system.time(sub28237 <- subset_fun(filenumber=28237,framesofinterest=28500:29500))
+system.time(sub2816 <- subset_fun(filenumber=2816,framesofinterest=2900:4200))
 
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
-system.time(rast_28237<-ortho_funSUB(sub28237,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:21500)))#;beep(2)
+system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:21500)))#;beep(2)
 
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = 0, RollCorrFactor = -0.03,PitchCorrFactor = -0.02)
+Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.06,PitchCorrFactor = 0.005)
 
-system.time(rast_28237MULTI<-ortho_funSUB(sub28237,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:22000)))#;beep(2)
+system.time(rast_2816MULTI<-orho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:22000)))#;beep(2)
 
 
 
 # plot(ring5vis)
- # ring3rel <- crop(ring3vis,extent(rast_28237MULTI)+5)
-breakpoints <- c(minValue(rast_28237MULTI),minValue(rast_28237MULTI)+125,minValue(rast_28237MULTI)+175,maxValue(rast_28237MULTI))
+ # ring2rel <- crop(ring2vis,extent(rast_2816MULTI)+5)
+breakpoints <- c(minValue(rast_2816MULTI),minValue(rast_2816MULTI)+125,minValue(rast_2816MULTI)+175,maxValue(rast_2816MULTI))
 mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
 
-plot(ring3rel)
-# plot(rast_28237,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
+plot(ring2rel)
+# plot(rast_2816,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
 
-plot(rast_28237MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
+plot(rast_2816MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
 # plot(plotshp,add=T)
 
 print("hi")
@@ -431,7 +431,7 @@ return(tot_out)
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/"))))))
 
 
-Proc_IMU2816 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.075,PitchCorrFactor = 0.005);system.time(out_df2816 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMU2816,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(3)
+Proc_IMU2816 <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.06,PitchCorrFactor = 0.005);system.time(out_df2816 <- rbindlist(lapply(listoffilenums[c(3)],ortho_fun,ProcessedIMU=Proc_IMU2816,PlotShapeFile=plotshp,bandtowave=bandtowave)));beep(3)
 write.csv(out_df2816,"~/out_df2816.csv")
 rm(list=c("Proc_IMU2816","out_df2816"))
 
