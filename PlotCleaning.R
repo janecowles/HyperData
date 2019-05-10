@@ -68,15 +68,22 @@ system.time(sixteenplots <- rbindlist(lapply(unique(bc_df16sub$plot.files),readi
 # system.time(zero16plots <- rbindlist(lapply(unique(bc_df016$plot.files),readinfunc)))
 
 system.time(plots.files250to447 <- rbindlist(lapply(unique(bc_df$plot.files)[250:447],readinfunc)))
+system.time(plots.files500to554 <- rbindlist(lapply(unique(bc_df$plot.files)[500:554],readinfunc)))
 
-
-hist(zeroplots$nm540_751)
+df <- merge(plots.files250to447,bc18,by="Plot")
+df$mean430660 <- rowMeans(df[,17:120])
+hist(df$mean430660)
+ggplot(df,aes(Lon2,Lat2,color=mean430660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()
 
 zero16 <- rbind(zeroplots,sixteenplots)
 zero16$mean430660 <- rowMeans(zero16[,16:119])
 zero16$mean600660 <- rowMeans(zero16[,92:119])
-
+zeroplots$mean430660 <- rowMeans(zeroplots[,16:119])
 ggplot(zeroplots,aes(Lon2,Lat2,color=nm540_751))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()+facet_wrap("Plot",scales="free")
+ggplot(zeroplots,aes(Lon2,Lat2,color=mean430660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()+facet_wrap("Plot",scales="free")
+
+
+
 ggplot(sixteenplots,aes(Lon2,Lat2,color=nm540_751))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()+facet_wrap("Plot",scales="free")
 ggplot(zero16,aes(Lon2,Lat2,color=mean430660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()+facet_wrap("Plot",scales="free")
 ggplot(zero16,aes(Lon2,Lat2,color=mean600660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()+facet_wrap("Plot",scales="free")
