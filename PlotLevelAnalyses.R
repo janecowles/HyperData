@@ -9,8 +9,6 @@ library(spatstat)
 library(rgeos)
 library(maptools)
 library(sf)
-library(ggmap)
-library(PBSmapping)
 ### general packages that I use often
 library(plyr)
 library(nlme)
