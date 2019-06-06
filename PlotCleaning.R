@@ -58,22 +58,59 @@ bc_df016<-bc_df[bc_df$CountOfSpecies%in%c(0,16),]
 
 #read in plot files and compare 0 to 16 
 readinfunc <- function(x){
-  POI <- readOGR(paste0(plotsdatalocation,x))
+  POI <- st_read(paste0(plotsdatalocation,x))
   POIdf <- as.data.frame(POI)
   POIdf$Plot <- as.numeric(gsub("[^0-9]", "", substrRight(as.character(x),3))) 
   return(POIdf)
 }
-system.time(zeroplots <- rbindlist(lapply(unique(bc_df0$plot.files),readinfunc)))
-system.time(sixteenplots <- rbindlist(lapply(unique(bc_df16sub$plot.files),readinfunc)))
+
+# POI <- st_read(paste0(plotsdatalocation,plot.files[100]))
+
+# system.time(zeroplots <- rbindlist(lapply(unique(bc_df0$plot.files),readinfunc)))
+
+# system.time(sixteenplots <- rbindlist(lapply(unique(bc_df16sub$plot.files),readinfunc)))
 # system.time(zero16plots <- rbindlist(lapply(unique(bc_df016$plot.files),readinfunc)))
 
-system.time(plots.files250to447 <- rbindlist(lapply(unique(bc_df$plot.files)[250:447],readinfunc)))
-system.time(plots.files500to554 <- rbindlist(lapply(unique(bc_df$plot.files)[500:554],readinfunc)))
+# system.time(plots.files250to447 <- rbindlist(lapply(unique(bc_df$plot.files)[250:447],readinfunc)))
+# system.time(plots.files500to554 <- rbindlist(lapply(unique(bc_df$plot.files)[500:554],readinfunc)))
+plots.files250to447 <- fread("/Users/cowl0037/Downloads/plots_files250to447.csv")
+plots.files447to555 <- fread("/Users/cowl0037/Downloads/plots_files447to555.csv")
 
-df <- merge(plots.files250to447,bc18,by="Plot")
-df$mean430660 <- rowMeans(df[,17:120])
-hist(df$mean430660)
-ggplot(df,aes(Lon2,Lat2,color=mean430660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()
+table(plots.files447to555$Plot,plots.files447to555$StartFrame)
+table(plots.files250to447$Plot,plots.files250to447$StartFrame)
+
+plots.files448 <- plots.files447to555[!(plots.files447to555$Plot%in%unique(plots.files250to447$Plot)&plots.files447to555$StartFrame%in%unique(plots.files250to447$StartFrame)),]
+
+plots.files1to249 <- fread("/Users/cowl0037/Downloads/plots_files1to249.csv")
+allplots <- rbind(plots.files1to249,plots.files250to447,plots.files448)
+names(allplots)
+
+
+rm(plots.files1to249)
+rm(plots.files250to447)
+rm(plots.files447to555)
+rm(plots.files448)
+
+df <- merge(allplots,bc18,by="Plot")
+
+rm(allplots)
+
+# df$mean430660 <- rowMeans(df[,17:120])
+# hist(df$mean430660)
+df.1 <- df[df$Ring==1,] #rm(df)
+df.2 <- df[df$Ring==2,]
+df.3 <- df[df$Ring==3,]
+df.4 <- df[df$Ring==4,]
+df.5 <- df[df$Ring==5,]
+df.6 <- df[df$Ring==6,]
+
+
+
+ggplot(df.1[df$mean430660<800&df$Ring==1,],aes(Lon2,Lat2,color=mean430660))+geom_point(size=2.5)+scale_color_continuous(low="red",high="blue")+theme_classic()
+ggplot(df[df$mean430660<800&df$Ring==1,],aes(Lon2,Lat2,color=factor(CountOfSpecies)))+geom_point(size=2.5)+theme_classic()
+
+table(df$Plot)
+
 
 zero16 <- rbind(zeroplots,sixteenplots)
 zero16$mean430660 <- rowMeans(zero16[,16:119])
