@@ -47,11 +47,11 @@ df_keep <- df_keep[df_keep$NDVI<1&df_keep$NDVI>-1,]
 # fwrite(df_keep,"~/Documents/FINAL_NoDups_WITHBG5June2019.csv")
 df_keep <- fread("~/Documents/FINAL_NoDups_WITHBG5June2019.csv")
 df_keep$AGB <- df_keep$AbovegroundTotal.Biomass..g.m.2
-df_keep$SuperBarePlots <- ifelse(df_keep$Plot%in%c(260,276,338,73,77,31,46),"SuperBare","NormalPlot")
+df_keep$SuperBarePlots <- ifelse(df_keep$Plot%in%unique(df_keep$Plot[df_keep$AGB<5]),"SuperBare","NormalPlot")
 df_keep$SuperBarePlots[df_keep$Plot %in% unique(df_keep$Plot[df_keep$AGB>1000])]<-"SuperHigh"
 df_keep$`Plot Diversity` <- as.factor(df_keep$CountOfSpecies)
-ggplot(df_keep[df_keep$Ring==2,],aes(Lon2,Lat2,color=factor(CountOfSpecies)))+geom_point()+coord_fixed()+ scale_color_manual(values=c("grey87","darkorange","deepskyblue","forestgreen","darkslategrey"))+theme_minimal()
-ggsave("~/Documents/Ring2_dfkeepAKAallpoints.pdf")
+ggplot(df_keep[df_keep$Ring==2&df_keep$Use.for.Main=="Y",],aes(Lon2,Lat2,color=factor(CountOfSpecies)))+geom_point()+coord_fixed()+ scale_color_manual(values=c("darkorange","deepskyblue","forestgreen","darkslategrey"))+theme_minimal()
+ggsave("~/Documents/Ring2_dfkeepAKAallpointsMAIN.pdf")
 unique(df_keep$Plot[df_keep$X..cover.Total.Planted.Species>75])
 
 
@@ -92,7 +92,7 @@ df_train$SuperBarePlots<-factor(df_train$SuperBarePlots)
 wavelengthcols <- paste(colnames(df_train[,c(94:365)]),collapse="+")
 formula1 <- as.formula(paste("SuperBarePlots~",wavelengthcols,sep=""))
 system.time(rf1 <- randomForest(formula1,data = df_train))
-df_keep$preds <- predict(rf1,df_keep)
+system.time(df_keep$preds <- predict(rf1,df_keep))
 
 table(df_keep$preds)
 
@@ -103,15 +103,16 @@ ggplot(df_keep,aes(SuperBarePlots,NDVI))+geom_violin()
 
 
 ExpBGremove <- df_keep[df_keep$preds=="SuperHigh"]
-# fwrite(ExpBGremove,"~/Documents/RF_BGRemoval6June2019.csv")
+# fwrite(ExpBGremove,"~/Documents/RF_BGRemoval18June2019.csv")
 
-ExpBGremove <- fread("~/Documents/RF_BGRemoval6June2019.csv")
+ExpBGremove <- fread("~/Documents/RF_BGRemoval18June2019.csv")
 ggplot(ExpBGremove[ExpBGremove$Ring==1,],aes(Lon2,Lat2,color=NDVI))+geom_point()
 ggsave("~/Documents/Ring1.pdf")
 
 ggplot(ExpBGremove[ExpBGremove$Ring==2,],aes(Lon2,Lat2,color=NDVI))+geom_point()
+
 ggplot(ExpBGremove[ExpBGremove$Ring==2,],aes(Lon2,Lat2,color=factor(CountOfSpecies)))+geom_point()+coord_fixed()+scale_color_manual(values=c("darkorange","deepskyblue","forestgreen","darkslategrey"))+theme_minimal()
-ggsave("~/Documents/Ring2_div.pdf")
+ggsave("~/Documents/Ring2_div18June.pdf")
 
 ggplot(ExpBGremove[ExpBGremove$Ring==3,],aes(Lon2,Lat2,color=NDVI))+geom_point()
 ggsave("~/Documents/Ring3.pdf")
@@ -131,12 +132,12 @@ ggsave("~/Documents/Ring6.pdf")
 # ggplot(ExpBGremove_r2,aes(Lon2,Lat2,color=NDVI))+geom_point()
 
 
-cols <- colnames(df_keep)[c(11:92,366)]
+cols <- colnames(df_keep)[c(1,11:92,366)]
 preremoval_nrows <- df_keep[,.(preremovalnumberofpixels=length(NDVI)),by=cols]
 ggplot(preremoval_nrows,aes(preremovalnumberofpixels,X..cover.Total.Planted.Species))+geom_point()
 
 
-cols <- colnames(ExpBGremove)[c(11:92,366)]
+cols <- colnames(ExpBGremove)[c(1,11:92,366)]
 mean_nrows <- ExpBGremove[,.(numberofpixels=length(NDVI)),by=cols]
 ggplot(mean_nrows,aes(numberofpixels,X..cover.Total.Planted.Species))+geom_point()
 
@@ -144,6 +145,8 @@ preandpost <- merge(preremoval_nrows,mean_nrows,by=cols)
 ggplot(preandpost,aes(preremovalnumberofpixels,numberofpixels,color=X..cover.Total.Planted.Species))+geom_point()
 
 ggplot(preandpost,aes(preremovalnumberofpixels,numberofpixels,color=X..cover.Total.Planted.Species))+geom_point()
+
+fwrite(preandpost,"~/Documents/PlotLevelPixelsRemoved_21June2019.csv")
 
 
 ggsave("~/Documents/Pixelsxremoval.pdf")
@@ -156,80 +159,35 @@ colnames(dffin)[94:365] <- as.numeric(str_replace(colnames(dffin)[94:365],"nm","
 #next, I'll want to try to read in the files I made below and match them up with the true lat lon... this will be the final smoothed file.
 dffin_loc <- dffin[,c("PlotXY","Lon2","Lat2")]
 colnames(dffin_loc)<-c("PlotXY","Longitude","Latitude")
-ggplot(dffin_loc[1:75000,],aes(Longitude,Latitude))+geom_point()
+# ggplot(dffin_loc[1:75000,],aes(Longitude,Latitude))+geom_point()
+i=1
+for(i in 1:6){
+dffin_tmp <- dffin[dffin$Ring==i,]
+df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
+df_smooth <- smooth(df_spec)
+df_norm<-normalize(df_smooth)
+smdf <- as.data.frame(df_norm)
+fwrite(smdf,paste0("~/Documents/SmoothRing",i,"_23June2019.csv"))
+print(dim(df_smooth))
+rm(dffin_tmp,df_spec,df_smooth,df_norm,smdf)
+}
 
-# dffin_tmp <- dffin[dffin$Ring==1,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing1_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
-# dffin_tmp <- dffin[dffin$Ring==2,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing2_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
-# 
-# dffin_tmp <- dffin[dffin$Ring==3,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing3_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
-# 
-# dffin_tmp <- dffin[dffin$Ring==4,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing4_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
-# 
-# dffin_tmp <- dffin[dffin$Ring==5,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing5_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
-# 
-# dffin_tmp <- dffin[dffin$Ring==6,]
-# df_spec <- as.spectra(dffin_tmp,name_idx = 371,meta_idxs = c(1:93,366:370))
-# df_smooth <- smooth(df_spec)
-# smdf <- as.data.frame(df_smooth)
-# fwrite(smdf,"~/Documents/SmoothRing6_11June2019.csv")
-# rm(dffin_tmp)
-# rm(df_spec)
-# rm(df_smooth)
-# rm(smdf)
+
+
 # 
 # 
-# smdf <- fread("~/Documents/SmoothRing6_11June2019.csv")
+# smdf <- fread("~/Documents/SmoothRing6_18June2019.csv")
 # names(df_smdf)
 # mean(smdf$`400.825`)
 # sd(smdf$`400.825`)/mean(smdf$`400.825`)
 
 #### here's the start for tomorrow! Read in all the ring files as above, and go forth!
-smdf1 <- fread("~/Documents/SmoothRing1_11June2019.csv")
-smdf2 <- fread("~/Documents/SmoothRing2_11June2019.csv")
-smdf3 <- fread("~/Documents/SmoothRing3_11June2019.csv")
-smdf4 <- fread("~/Documents/SmoothRing4_11June2019.csv")
-smdf5 <- fread("~/Documents/SmoothRing5_11June2019.csv")
-smdf6 <- fread("~/Documents/SmoothRing6_11June2019.csv")
+smdf1 <- fread("~/Documents/SmoothRing1_18June2019.csv")
+smdf2 <- fread("~/Documents/SmoothRing2_18June2019.csv")
+smdf3 <- fread("~/Documents/SmoothRing3_18June2019.csv")
+smdf4 <- fread("~/Documents/SmoothRing4_18June2019.csv")
+smdf5 <- fread("~/Documents/SmoothRing5_18June2019.csv")
+smdf6 <- fread("~/Documents/SmoothRing6_18June2019.csv")
 
 smdf <- rbind(smdf1,smdf2,smdf3,smdf4,smdf5,smdf6)
 

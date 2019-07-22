@@ -37,8 +37,8 @@ library(NbClust)
 library(cluster)
 library(factoextra)
 
-plotsdatalocation <- "/Users/cowl0037/Documents/Hyper/Final PLOTS/" #mac
-# plotsdatalocation <- "/Volumes/HyperDrive/Final PLOTS/" #mac
+# plotsdatalocation <- "/Users/cowl0037/Documents/Hyper/Final PLOTS/" #mac
+plotsdatalocation <- "/Volumes/HyperDrive/Final PLOTS/" #mac
 # plotsdatalocation <- "F:/Final PLOTS/" #isbell pc
 substrRight <- function(x, n){
   substr(x, nchar(x)-4-n+1, nchar(x)-4)
@@ -75,21 +75,22 @@ readinfunc <- function(x){
 # system.time(plots.files500to554 <- rbindlist(lapply(unique(bc_df$plot.files)[500:554],readinfunc)))
 plots.files250to447 <- fread("/Users/cowl0037/Downloads/plots_files250to447.csv")
 plots.files447to555 <- fread("/Users/cowl0037/Downloads/plots_files447to555.csv")
-
-table(plots.files447to555$Plot,plots.files447to555$StartFrame)
-table(plots.files250to447$Plot,plots.files250to447$StartFrame)
-
-plots.files448 <- plots.files447to555[!(plots.files447to555$Plot%in%unique(plots.files250to447$Plot)&plots.files447to555$StartFrame%in%unique(plots.files250to447$StartFrame)),]
+#accidentally made an overlap!
+plots.filesno448 <-plots.files447to555[!(plots.files447to555$Plot==297&plots.files447to555$StartFrame==39773),]
+# unique(plots.files447to555$StartFrame[plots.files447to555$Plot==297])
+# unique(plots.files250to447$StartFrame[plots.files250to447$Plot==297])
 
 plots.files1to249 <- fread("/Users/cowl0037/Downloads/plots_files1to249.csv")
-allplots <- rbind(plots.files1to249,plots.files250to447,plots.files448)
-names(allplots)
+
+
+allplots <- rbind(plots.files1to249,plots.files250to447,plots.filesno448)
+
 
 
 rm(plots.files1to249)
 rm(plots.files250to447)
 rm(plots.files447to555)
-rm(plots.files448)
+rm(plots.filesno448)
 
 df <- merge(allplots,bc18,by="Plot")
 

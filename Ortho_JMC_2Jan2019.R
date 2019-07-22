@@ -39,7 +39,7 @@ library(hyperSpec)
 # RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
 # LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
 # ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
-# VisLoc <- "/Volumes/HyperDrive/BioCon....."
+# VisLoc <- "/Volumes/HyperDrive/BioCON10Aug2018/"
 #directories for ISBELL PC
 computer <- 'pc'
 RemoteSenDataLoc <- "F:/RemoteSensing/"
@@ -315,11 +315,11 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
 
 
 
-system.time(sub2816 <- subset_fun(filenumber=2816,framesofinterest=2900:4200))
+system.time(sub2816 <- subset_fun(filenumber=2816,framesofinterest=2900:3000))
 
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
-system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:21500)))#;beep(2)
+system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(2900:3000)))#;beep(2)
 
 Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.06,PitchCorrFactor = 0.005)
 
@@ -351,6 +351,8 @@ print("hi")
 
 # system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510)))
 # system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
+
+
 
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){

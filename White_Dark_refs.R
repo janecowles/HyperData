@@ -12,7 +12,7 @@ brightdf <- as.data.frame(bright)
 setDT(brightdf)
 bright_means <- brightdf[,lapply(.SD, mean),  .SDcols = 1:272]
 bright_means$Type <- "BrightRef"
-write.csv(bright_means,"~/Dropbox/UMN Postdoc/Ortho_Proc/BrightRef_meanval.csv",row.names=F)
+fwrite(bright_means,"~/Dropbox/UMN Postdoc/Ortho_Proc/BrightRef_meanval.csv",row.names=F)
 dark <- readGDAL("/Volumes/HyperDrive/Google Drive/remote sensing data/20180917/100039_darkBioCON_2018_09_17_14_46_37/raw_0")
 darkdf <- as.data.frame(dark)
 rm(dark)
@@ -21,7 +21,8 @@ colnames(darkdf)[1:272]<-gsub("\\.","_",paste0("nm",bandtowave$Wavelength))
 setDT(darkdf)
 dark_means <- darkdf[,lapply(.SD, mean),  .SDcols = 1:272]
 dark_means$Type <- "DarkRef"
-write.csv("dark_means","~/Dropbox/UMN Postdoc/Ortho_Proc/DarkRef_meanval.csv",row.names=F)
+fwrite(dark_means,"~/Dropbox/UMN Postdoc/Ortho_Proc/DarkRef_meanval.csv")
+dark_means <- read.csv("~/Dropbox/UMN Postdoc/Ortho_Proc/DarkRef_meanval.csv")
 ### for each wavelength -- (target-dark)/(light-dark)
 
 light_dark_df1 <- rbind.fill(df,bright_means,dark_means)
