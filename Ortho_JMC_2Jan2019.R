@@ -35,11 +35,11 @@ library(hyperSpec)
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
 # #directories for MY MAC
-# computer <- 'mac'
-# RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
-# LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
-# ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
-# VisLoc <- "/Volumes/HyperDrive/BioCON10Aug2018/"
+computer <- 'mac'
+RemoteSenDataLoc <- "/Volumes/HyperDrive/Google Drive/remote sensing data/"
+LocalSource <- "~/Dropbox/UMN Postdoc/Ortho_Proc/" #imu and biocon shapefile (polygons)
+ProcLoc <- "/Volumes/HyperDrive/JaneProc/"
+VisLoc <- "/Volumes/HyperDrive/BioCON10Aug2018/"
 #directories for ISBELL PC
 computer <- 'pc'
 RemoteSenDataLoc <- "F:/RemoteSensing/"
@@ -311,11 +311,11 @@ ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,fram
   
 }
 
+system.time(orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_4816")))
+system.time(orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_4816"),allowedDrivers = "ENVI"))
 
 
-
-
-system.time(sub2816 <- subset_fun(filenumber=2816,framesofinterest=2900:3000))
+system.time(sub2816 <- subset_fun(filenumber=4816,framesofinterest=4816:4830))
 
 Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coords.epsg=4326,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
 
