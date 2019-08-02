@@ -338,10 +338,6 @@ plot(ring2rel)
 plot(rast_2816MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
 # plot(plotshp,add=T)
 
-print("hi")
-
-
-print("hi")
 
 
 ##############################################end of test area
@@ -349,9 +345,12 @@ print("hi")
 ##############################################
 
 
-# system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510)))
-# system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
+system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",4816)))
+testsp_df <- as.data.frame(testsp_gdal)
+fwrite(testsp_df,paste0(RemoteSenDataLoc,"raw_4816_fromR.csv"))
 
+system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",6832),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
+system.time()
 
 
 
