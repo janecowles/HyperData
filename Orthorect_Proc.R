@@ -44,7 +44,7 @@ VisLoc <- "/Volumes/HyperDrive/BioCON10Aug2018/"
 computer <- 'pc'
 # RemoteSenDataLoc <- "F:/RemoteSensing/"
 LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
-ProcLoc <- "F:/Testing/"
+ProcLoc <- "F:/BB_30July/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 RemoteSenDataLoc <- "F:/GoogleDrive/remote sensing data/" #2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48
 FolderLoc <- "2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48/"
@@ -79,13 +79,12 @@ setDT(framematch,key="Timestamp")
 imu.framematch <- imu[framematch,roll=T]
 
 rm(imu)
-rm(imuDT)
 rm(imuxy)
 rm(imusp)
 
 bandtowave <- read.csv(paste0(LocalSource,"BandNumWavelength.csv"))
 
-plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
+plotshp <- readOGR(paste0(LocalSource,"CORRECTE120/BigBio Shape/BB_Shape_JC.shp"))
 
 #don't need to do this again
 imu.framexy <- imu.framematch[,c("Lon","Lat")]
@@ -97,7 +96,7 @@ dem1m <- spTransform(dem1m,"+init=epsg:32615")
 dem_rel <- crop(dem1m,extent(imu.framesp)+40)
 class(dem_rel)
 dem_sf <- st_as_sf(dem_rel)
-st_write(dem_sf,dsn=paste0(LocalSource,"dem_BBFAB.shp"),layer="dem_BBFAB.shp",driver="ESRI Shapefile",delete_layer=TRUE)
+# st_write(dem_sf,dsn=paste0(LocalSource,"dem_BBFAB.shp"),layer="dem_BBFAB.shp",driver="ESRI Shapefile",delete_layer=TRUE)
 
 # dem_rel <- readOGR(paste0(LocalSource,"dem_BBFAB.shp"))
 # dem_rel <- spTransform(dem_rel,"+init=epsg:32615")
@@ -128,11 +127,7 @@ system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+30))
 rm(vis)
 
 
-tmp <- imu.framematch
-coords.epsg <- CoordSystem
-YawCorrFactor=0
-PitchCorrFactor=0
-RollCorrFactor=0
+
 
 imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast,YawCorrFactor=0,PitchCorrFactor=0,RollCorrFactor=0){
   
@@ -245,8 +240,6 @@ spacing_fun <- function(pix_i,matchimu,specdfframe){
   return(specdfpix)
 }
 
-ProcessedIMU <- Proc_IMU
-framex<-4816
 
 byframe_corr <- function(framex,sdf,ProcessedIMU){
    specdfframe <- sdf[sdf$frame==framex,]
@@ -261,10 +254,10 @@ byframe_corr <- function(framex,sdf,ProcessedIMU){
 
 
 shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,computer=computer,ProcLoc=ProcLoc){
-  plottmp <- subset(PlotShapeFile,PLOTID==plotnum)
+  plottmp <- subset(PlotShapeFile,Plot==plotnum)
   # plot_sf <- st_as_sf(plottmp)
   #for now, I want to test if I can see the plot edges as a square within the buffered region
-  plot_buff <- gBuffer(plottmp,width = -0.5)
+  plot_buff <- gBuffer(plottmp,width = -2)
   plot_sf <- st_as_sf(plot_buff)
   st_crs(plot_sf)<-st_crs(specdfOUT_sf)
   suppressWarnings(plot_clip <- st_intersection(specdfOUT_sf,plot_sf))
@@ -384,6 +377,10 @@ print("hi")
 # system.time(orig_sp2 <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber)))
 # system.time(orig_sp3 <-hyperSpec::read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber,".hdr")))
 
+# filenumber <- listoffilenums[10]
+# ProcessedImu <- Proc_IMU
+# PlotShapeFile <- plotshp
+
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
   system.time(orig_sp <-caTools::read.ENVI(paste0(RemoteSenDataLoc,FolderLoc,"raw_",filenumber)))
@@ -427,10 +424,10 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
 # #comment this out for faster test runs
-# cl2<-makeCluster(no_cores)
-# clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write","gBuffer"),envir=environment())
-# parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
-# stopCluster(cl2)
+cl2<-makeCluster(no_cores)
+clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write","gBuffer"),envir=environment())
+parLapply(cl2,sort(unique(plotshp$Plot)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
+stopCluster(cl2)
 
 
   # if(computer=="mac"){
@@ -441,7 +438,7 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
   # if(computer=="pc"){
 
 ### 11 april - temporary comment-out to see how much time is saved. for 24510 it took 3464.97 (TOTAL) WITH this in. Without? 400. 22510 was 1000 without, with??
-     # st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Final",filenumber,"full.shp"),layer=paste0("Final",filenumber,"full"),driver="ESRI Shapefile",dataset_options = 'OVERWRITE=YES', update = TRUE)
+     st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Final",filenumber,"full.shp"),layer=paste0("Final",filenumber,"full"),driver="ESRI Shapefile",update = TRUE)
      
 
     print(Sys.time())
@@ -449,18 +446,18 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
     # }else{print("notpc!")}
 
 #commenting out for faster test runs
-# means_out <- over(plotshp,specdfOUT_sp,fn=mean)
-# means_out$Plot <- 1:nrow(means_out)
-# means_out$File <- filenumber
-# 
-# cv_out <- over(plotshp,specdfOUT_sp,fn=cv,na.rm=T)
-# colnames(cv_out)<- paste(colnames(cv_out),"cv",sep="_")
-# cv_out$Plot <- 1:nrow(cv_out)
-# cv_out$File <- filenumber
-# 
-# tot_out <-cbind(means_out,cv_out)
+means_out <- over(plotshp,specdfOUT_sp,fn=mean)
+means_out$Plot <- 1:nrow(means_out)
+means_out$File <- filenumber
 
-tot_out <- data.frame(lol=c(1,2,3,4))
+cv_out <- over(plotshp,specdfOUT_sp,fn=cv,na.rm=T)
+colnames(cv_out)<- paste(colnames(cv_out),"cv",sep="_")
+cv_out$Plot <- 1:nrow(cv_out)
+cv_out$File <- filenumber
+
+tot_out <-cbind(means_out,cv_out)
+
+# tot_out <- data.frame(lol=c(1,2,3,4))
 return(tot_out)
   
 
@@ -468,6 +465,9 @@ return(tot_out)
 
 
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,FolderLoc))))))
+system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(9)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
+str(out_dfTEST)
+
 
 Rprof("file.out")
 system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
