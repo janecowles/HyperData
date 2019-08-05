@@ -268,7 +268,7 @@ shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,comput
   # st_write(plot_clip,dsn=paste0(ProcLoc),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",delete_layer=TRUE)}
   # 
   # if(computer=="pc"){
-    st_write(plot_clip,dsn=paste0(ProcLoc,"Final",filenumber,"Plot",plotnum,".shp"),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",layer_options = 'OVERWRITE=YES', update = TRUE)}
+    st_write(plot_clip,dsn=paste0(ProcLoc,"Final",filenumber,"Plot",plotnum,".shp"),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",update = TRUE)}
   # }
 }
 
