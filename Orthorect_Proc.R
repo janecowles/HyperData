@@ -44,7 +44,7 @@ VisLoc <- "/Volumes/HyperDrive/BioCON10Aug2018/"
 computer <- 'pc'
 # RemoteSenDataLoc <- "F:/RemoteSensing/"
 LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
-ProcLoc <- "F:/Testing/"
+ProcLoc <- "F:/BB_30July/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
 RemoteSenDataLoc <- "F:/GoogleDrive/remote sensing data/" #2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48
 FolderLoc <- "2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48/"
@@ -79,13 +79,12 @@ setDT(framematch,key="Timestamp")
 imu.framematch <- imu[framematch,roll=T]
 
 rm(imu)
-rm(imuDT)
 rm(imuxy)
 rm(imusp)
 
 bandtowave <- read.csv(paste0(LocalSource,"BandNumWavelength.csv"))
 
-plotshp <- readOGR(paste0(LocalSource,"e141_poly.shp"))
+plotshp <- readOGR(paste0(LocalSource,"CORRECTE120/BigBio Shape/BB_Shape_JC.shp"))
 
 #don't need to do this again
 imu.framexy <- imu.framematch[,c("Lon","Lat")]
@@ -97,8 +96,8 @@ dem1m <- spTransform(dem1m,"+init=epsg:32615")
 dem_rel <- crop(dem1m,extent(imu.framesp)+40)
 class(dem_rel)
 dem_sf <- st_as_sf(dem_rel)
-st_write(dem_sf,dsn=paste0(LocalSource,"dem_BBFAB.shp"),layer="dem_BBFAB.shp",driver="ESRI Shapefile",delete_layer=TRUE)
-
+# st_write(dem_sf,dsn=paste0(LocalSource,"dem_BBFAB.shp"),layer="dem_BBFAB.shp",driver="ESRI Shapefile",delete_layer=TRUE)
+rm(dem1m)
 # dem_rel <- readOGR(paste0(LocalSource,"dem_BBFAB.shp"))
 # dem_rel <- spTransform(dem_rel,"+init=epsg:32615")
 
@@ -113,26 +112,10 @@ dem_rast <- rasterize(dem_rel, rast, dem_rel$band1, fun=mean)
 crs(dem_rast)<-crs(dem_rel)
 minAlt_dem_atminIMU <- raster::extract(dem_rast,SpatialPoints(cbind(lonMinIMU,latMinIMU)),buffer=2,fun=mean,na.rm=T)
 plot(dem_rast)
-### biocon vis - read in and crop
-vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
 
 
-# visproj <- projectRaster(vis,crs="+init=epsg:32615 +proj=utm +zone=15 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-system.time(ring1vis <- crop(vis,extent(bbox(subset(plotshp,RingID==1)))+30))
-system.time(ring2vis <- crop(vis,extent(bbox(subset(plotshp,RingID==2)))+30))
-system.time(ring3vis <- crop(vis,extent(bbox(subset(plotshp,RingID==3)))+30))
-system.time(ring4vis <- crop(vis,extent(bbox(subset(plotshp,RingID==4)))+30))
-system.time(ring5vis <- crop(vis,extent(bbox(subset(plotshp,RingID==5)))+30))
-system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+30))
-rm(vis)
 
 
-tmp <- imu.framematch
-coords.epsg <- CoordSystem
-YawCorrFactor=0
-PitchCorrFactor=0
-RollCorrFactor=0
 
 imu_proc <- function(imu.datafile,FOVAngle,GroundLevel=0,minAlt_dem_atminIMU,degree=TRUE,coords.epsg,dem_rast,YawCorrFactor=0,PitchCorrFactor=0,RollCorrFactor=0){
   
@@ -245,8 +228,6 @@ spacing_fun <- function(pix_i,matchimu,specdfframe){
   return(specdfpix)
 }
 
-ProcessedIMU <- Proc_IMU
-framex<-4816
 
 byframe_corr <- function(framex,sdf,ProcessedIMU){
    specdfframe <- sdf[sdf$frame==framex,]
@@ -261,10 +242,10 @@ byframe_corr <- function(framex,sdf,ProcessedIMU){
 
 
 shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,computer=computer,ProcLoc=ProcLoc){
-  plottmp <- subset(PlotShapeFile,PLOTID==plotnum)
+  plottmp <- subset(PlotShapeFile,Plot==plotnum)
   # plot_sf <- st_as_sf(plottmp)
   #for now, I want to test if I can see the plot edges as a square within the buffered region
-  plot_buff <- gBuffer(plottmp,width = -0.5)
+  plot_buff <- gBuffer(plottmp,width = -2)
   plot_sf <- st_as_sf(plot_buff)
   st_crs(plot_sf)<-st_crs(specdfOUT_sf)
   suppressWarnings(plot_clip <- st_intersection(specdfOUT_sf,plot_sf))
@@ -275,114 +256,9 @@ shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,comput
   # st_write(plot_clip,dsn=paste0(ProcLoc),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",delete_layer=TRUE)}
   # 
   # if(computer=="pc"){
-    st_write(plot_clip,dsn=paste0(ProcLoc,"Final",filenumber,"Plot",plotnum,".shp"),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",layer_options = 'OVERWRITE=YES', update = TRUE)}
+    st_write(plot_clip,dsn=paste0(ProcLoc,"Final",filenumber,"Plot",plotnum,".shp"),layer=paste0("Final",filenumber,"Plot",plotnum),driver="ESRI Shapefile",update = TRUE)}
   # }
 }
-
-#######################################################################
-#############to run smaller test runs
-
-subset_fun <- function(filenumber,framesofinterest){
-orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
-sdf <- as.data.frame(orig_sp)
-orig_sp <- NULL
-colnames(sdf)[1:272]<-paste0("nm",bandtowave$Wavelength)
-sdf$frame <- filenumber+max(sdf$y)-sdf$y
-subtmp <- sdf[sdf$frame%in%c(framesofinterest),]
-
-rm(sdf)
-return(subtmp)
-}
-
-ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,framesofinterest){
-  sdf<-subdataframe
-  filenumber<-min(framesofinterest)
-  sdf$Lat2 <- NA
-  sdf$Lon2 <- NA
-  sdf$Heading <- NA
-  
-  Sys.time()
-  cl<-makeCluster(no_cores)
-  clusterExport(cl,c("rbindlist","spacing_fun"))
-  specdfOUT<- rbindlist(parLapply(cl,sort(unique(sdf$frame)),byframe_corr,sdf,ProcessedIMU))
-  stopCluster(cl)
-  Sys.time()
-  
-  
-  specdfOUT$StartFrame <- filenumber
-  specdfOUT_xy <- specdfOUT[,c("Lon2","Lat2")]
-  specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
-  # specdfOUT_sf <- st_as_sf(specdfOUT_sp)
-  
-  
-  rast <- raster()
-  extent(rast) <- extent(specdfOUT_sp) 
-  ncol(rast) <- round(640/3)
-  nrow(rast) <- round(500/3)
-  
-  # And then ... rasterize it! This creates a grid version 
-  # of your points using the cells of rast, values from the IP field:
-  rast_specdfOUT_sp <- rasterize(specdfOUT_sp, rast, specdfOUT_sp$nm540.751, fun=mean) 
-  crs(rast_specdfOUT_sp)<-crs(specdfOUT_sp)
-  
-  
-  return(rast_specdfOUT_sp)
-  
-}
-
-
-
-system.time(sub2816 <- subset_fun(filenumber=4816,framesofinterest=4816:4830))
-
-Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coord.epsg=CoordSystem,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
-
-system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(2900:3000)))#;beep(2)
-
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coord.epsg=CoordSystem,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.06,PitchCorrFactor = 0.005)
-
-system.time(rast_2816MULTI<-orho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:22000)))#;beep(2)
-
-
-
-# plot(ring5vis)
- # ring2rel <- crop(ring2vis,extent(rast_2816MULTI)+5)
-breakpoints <- c(minValue(rast_2816MULTI),minValue(rast_2816MULTI)+125,minValue(rast_2816MULTI)+175,maxValue(rast_2816MULTI))
-mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
-
-plot(ring2rel)
-# plot(rast_2816,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
-
-plot(rast_2816MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
-# plot(plotshp,add=T)
-
-print("hi")
-
-
-print("hi")
-
-
-##############################################end of test area
-##############################################
-##############################################
-
-
-# system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510)))
-# system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
-
-
-# filenumber <- 4816
-# system.time(orig_sp <-caTools::read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber)))
-# init.dim <- dim(orig_sp)
-# dim(orig_sp) <- c(dim(orig_sp)[1]*dim(orig_sp)[2],dim(orig_sp)[3])
-# sdf <- as.data.frame(orig_sp)
-# #rep x 00000, 11111, 2222
-# sdf$x <- rep((1:init.dim[2])-1, each = init.dim[1])
-# 
-# # rep y 0 1 2 3 4
-# sdf$y <- rep((1:init.dim[1])-1,init.dim[2])
-# write.csv(sdf,"F:/RemoteSensing/TEST_4816caTools.csv")
-# system.time(orig_sp2 <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber)))
-# system.time(orig_sp3 <-hyperSpec::read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber,".hdr")))
 
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
@@ -427,10 +303,10 @@ ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
 plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
 
 # #comment this out for faster test runs
-# cl2<-makeCluster(no_cores)
-# clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write","gBuffer"),envir=environment())
-# parLapply(cl2,sort(unique(plotshp$PLOTID)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
-# stopCluster(cl2)
+cl2<-makeCluster(no_cores)
+clusterExport(cl2,c("st_crs","st_crs<-","subset","st_as_sf","st_intersection","st_write","gBuffer"),envir=environment())
+parLapply(cl2,sort(unique(plotshp$Plot)),shpfile_plotloop,specdfOUT_sf,PlotShapeFile,filenumber,computer,ProcLoc)
+stopCluster(cl2)
 
 
   # if(computer=="mac"){
@@ -441,7 +317,7 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
   # if(computer=="pc"){
 
 ### 11 april - temporary comment-out to see how much time is saved. for 24510 it took 3464.97 (TOTAL) WITH this in. Without? 400. 22510 was 1000 without, with??
-     # st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Final",filenumber,"full.shp"),layer=paste0("Final",filenumber,"full"),driver="ESRI Shapefile",dataset_options = 'OVERWRITE=YES', update = TRUE)
+     st_write(specdfOUT_sf,dsn=paste0(ProcLoc,"Final",filenumber,"full.shp"),layer=paste0("Final",filenumber,"full"),driver="ESRI Shapefile",update = TRUE)
      
 
     print(Sys.time())
@@ -449,25 +325,29 @@ plotshp <- spTransform(plotshp,proj4string(specdfOUT_sp))
     # }else{print("notpc!")}
 
 #commenting out for faster test runs
-# means_out <- over(plotshp,specdfOUT_sp,fn=mean)
-# means_out$Plot <- 1:nrow(means_out)
-# means_out$File <- filenumber
-# 
-# cv_out <- over(plotshp,specdfOUT_sp,fn=cv,na.rm=T)
-# colnames(cv_out)<- paste(colnames(cv_out),"cv",sep="_")
-# cv_out$Plot <- 1:nrow(cv_out)
-# cv_out$File <- filenumber
-# 
-# tot_out <-cbind(means_out,cv_out)
+means_out <- over(plotshp,specdfOUT_sp,fn=mean)
+means_out$Plot <- 1:nrow(means_out)
+means_out$File <- filenumber
 
-tot_out <- data.frame(lol=c(1,2,3,4))
+cv_out <- over(plotshp,specdfOUT_sp,fn=cv,na.rm=T)
+colnames(cv_out)<- paste(colnames(cv_out),"cv",sep="_")
+cv_out$Plot <- 1:nrow(cv_out)
+cv_out$File <- filenumber
+
+tot_out <-cbind(means_out,cv_out)
+
+# tot_out <- data.frame(lol=c(1,2,3,4))
 return(tot_out)
   
 
 }
 
-
+#ive done 95+
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,FolderLoc))))))
+system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(90:94)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
+
+str(out_dfTEST)
+
 
 Rprof("file.out")
 system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(4)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
