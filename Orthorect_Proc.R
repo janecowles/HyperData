@@ -97,7 +97,7 @@ dem_rel <- crop(dem1m,extent(imu.framesp)+40)
 class(dem_rel)
 dem_sf <- st_as_sf(dem_rel)
 # st_write(dem_sf,dsn=paste0(LocalSource,"dem_BBFAB.shp"),layer="dem_BBFAB.shp",driver="ESRI Shapefile",delete_layer=TRUE)
-
+rm(dem1m)
 # dem_rel <- readOGR(paste0(LocalSource,"dem_BBFAB.shp"))
 # dem_rel <- spTransform(dem_rel,"+init=epsg:32615")
 
@@ -112,19 +112,7 @@ dem_rast <- rasterize(dem_rel, rast, dem_rel$band1, fun=mean)
 crs(dem_rast)<-crs(dem_rel)
 minAlt_dem_atminIMU <- raster::extract(dem_rast,SpatialPoints(cbind(lonMinIMU,latMinIMU)),buffer=2,fun=mean,na.rm=T)
 plot(dem_rast)
-### biocon vis - read in and crop
-vis <- raster(paste0(VisLoc,"ortho_biocon_visual.tif"))
 
-
-# visproj <- projectRaster(vis,crs="+init=epsg:32615 +proj=utm +zone=15 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
-
-system.time(ring1vis <- crop(vis,extent(bbox(subset(plotshp,RingID==1)))+30))
-system.time(ring2vis <- crop(vis,extent(bbox(subset(plotshp,RingID==2)))+30))
-system.time(ring3vis <- crop(vis,extent(bbox(subset(plotshp,RingID==3)))+30))
-system.time(ring4vis <- crop(vis,extent(bbox(subset(plotshp,RingID==4)))+30))
-system.time(ring5vis <- crop(vis,extent(bbox(subset(plotshp,RingID==5)))+30))
-system.time(ring6vis <- crop(vis,extent(bbox(subset(plotshp,RingID==6)))+30))
-rm(vis)
 
 
 
@@ -272,115 +260,6 @@ shpfile_plotloop <-function(plotnum,specdfOUT_sf,PlotShapeFile,filenumber,comput
   # }
 }
 
-#######################################################################
-#############to run smaller test runs
-
-subset_fun <- function(filenumber,framesofinterest){
-orig_sp <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber))
-sdf <- as.data.frame(orig_sp)
-orig_sp <- NULL
-colnames(sdf)[1:272]<-paste0("nm",bandtowave$Wavelength)
-sdf$frame <- filenumber+max(sdf$y)-sdf$y
-subtmp <- sdf[sdf$frame%in%c(framesofinterest),]
-
-rm(sdf)
-return(subtmp)
-}
-
-ortho_funSUB <- function(subdataframe,ProcessedIMU,PlotShapeFile,bandtowave,framesofinterest){
-  sdf<-subdataframe
-  filenumber<-min(framesofinterest)
-  sdf$Lat2 <- NA
-  sdf$Lon2 <- NA
-  sdf$Heading <- NA
-  
-  Sys.time()
-  cl<-makeCluster(no_cores)
-  clusterExport(cl,c("rbindlist","spacing_fun"))
-  specdfOUT<- rbindlist(parLapply(cl,sort(unique(sdf$frame)),byframe_corr,sdf,ProcessedIMU))
-  stopCluster(cl)
-  Sys.time()
-  
-  
-  specdfOUT$StartFrame <- filenumber
-  specdfOUT_xy <- specdfOUT[,c("Lon2","Lat2")]
-  specdfOUT_sp <- SpatialPointsDataFrame(coords=specdfOUT_xy,data=specdfOUT,proj4string = CRS("+init=epsg:32615")) 
-  # specdfOUT_sf <- st_as_sf(specdfOUT_sp)
-  
-  
-  rast <- raster()
-  extent(rast) <- extent(specdfOUT_sp) 
-  ncol(rast) <- round(640/3)
-  nrow(rast) <- round(500/3)
-  
-  # And then ... rasterize it! This creates a grid version 
-  # of your points using the cells of rast, values from the IP field:
-  rast_specdfOUT_sp <- rasterize(specdfOUT_sp, rast, specdfOUT_sp$nm540.751, fun=mean) 
-  crs(rast_specdfOUT_sp)<-crs(specdfOUT_sp)
-  
-  
-  return(rast_specdfOUT_sp)
-  
-}
-
-
-
-system.time(sub2816 <- subset_fun(filenumber=4816,framesofinterest=4816:4830))
-
-Proc_IMU <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coord.epsg=CoordSystem,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast)
-
-system.time(rast_2816<-ortho_funSUB(sub2816,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(2900:3000)))#;beep(2)
-
-Proc_IMUMULTICorr <- imu_proc(imu.datafile = imu.framematch,GroundLevel=overallIMUmin,FOVAngle = 15.9619, degree=T,coord.epsg=CoordSystem,minAlt_dem_atminIMU=minAlt_dem_atminIMU,dem_rast=dem_rast,YawCorrFactor = .45, RollCorrFactor = -0.06,PitchCorrFactor = 0.005)
-
-system.time(rast_2816MULTI<-orho_funSUB(sub2816,ProcessedIMU=Proc_IMUMULTICorr,PlotShapeFile=plotshp,bandtowave=bandtowave,framesofinterest = c(21000:22000)))#;beep(2)
-
-
-
-# plot(ring5vis)
- # ring2rel <- crop(ring2vis,extent(rast_2816MULTI)+5)
-breakpoints <- c(minValue(rast_2816MULTI),minValue(rast_2816MULTI)+125,minValue(rast_2816MULTI)+175,maxValue(rast_2816MULTI))
-mycol <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue50")
-
-plot(ring2rel)
-# plot(rast_2816,breaks=breakpoints,col=c(mycol,"yellow","red"),add=T)
-
-plot(rast_2816MULTI,breaks=breakpoints,col=c(mycol,"blue","darkblue"),add=T)
-# plot(plotshp,add=T)
-
-print("hi")
-
-
-print("hi")
-
-
-##############################################end of test area
-##############################################
-##############################################
-
-
-# system.time(testsp_gdal <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510)))
-# system.time(testsp_envi <-read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",22510,".hdr")))
-
-
-# filenumber <- 4816
-# system.time(orig_sp <-caTools::read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber)))
-# init.dim <- dim(orig_sp)
-# dim(orig_sp) <- c(dim(orig_sp)[1]*dim(orig_sp)[2],dim(orig_sp)[3])
-# sdf <- as.data.frame(orig_sp)
-# #rep x 00000, 11111, 2222
-# sdf$x <- rep((1:init.dim[2])-1, each = init.dim[1])
-# 
-# # rep y 0 1 2 3 4
-# sdf$y <- rep((1:init.dim[1])-1,init.dim[2])
-# write.csv(sdf,"F:/RemoteSensing/TEST_4816caTools.csv")
-# system.time(orig_sp2 <-readGDAL(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber)))
-# system.time(orig_sp3 <-hyperSpec::read.ENVI(paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber),headerfile = paste0(RemoteSenDataLoc,"20180917/100040_bc_2018_09_17_14_48_50/raw_",filenumber,".hdr")))
-
-# filenumber <- listoffilenums[10]
-# ProcessedImu <- Proc_IMU
-# PlotShapeFile <- plotshp
-
 
 ortho_fun <- function(filenumber,ProcessedIMU,PlotShapeFile,bandtowave){
   system.time(orig_sp <-caTools::read.ENVI(paste0(RemoteSenDataLoc,FolderLoc,"raw_",filenumber)))
@@ -463,9 +342,10 @@ return(tot_out)
 
 }
 
-
+#ive done 95+
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,FolderLoc))))))
-system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(9)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
+system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(90:94)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
+
 str(out_dfTEST)
 
 
