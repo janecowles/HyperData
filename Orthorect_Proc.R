@@ -1,6 +1,8 @@
-#### Trig Calcs for Drone
+#### Code to orthorectify UAV captured hyperspectral data (Headwall Nano)
+#### Code is specific toreturning cropped experimental plots for analyses in addition to returning full orthorectified data cube
+#### but can be altered to just orthorectify and return data
 #### Jane M Cowles
-#### Dec 22 2018
+#### jcowles@umn.edu
 library(hsdar)
 library(caTools)
 library(rgdal)
@@ -11,17 +13,8 @@ library(maptools)
 library(sf)
 ### general packages that I use often
 library(plyr)
-library(nlme)
-library(lme4)
-library(car)
 library(ggplot2)
-library(vegan)
-library(readxl)
 library(data.table)
-library(tidyr)
-library(gridExtra)
-library(RColorBrewer)
-library(latticeExtra)
 
 #for parallel processing
 library(parallel)
@@ -29,8 +22,6 @@ library(parallel)
 #for making a beep noise
 library(beepr)
 
-#for read.ENVI in case better/quicker
-library(hyperSpec)
 
 ##### I can update this later with Sys.info()[['sysname']] -- the biggest hurdle is the st_write where you need to include the shapefile name as part of the dsn in windows but not in mac.
 
