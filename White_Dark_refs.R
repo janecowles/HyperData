@@ -7,22 +7,45 @@ library(sf)
 library(data.table)
 library(rgdal)
 # finalfull1024 <- st_read("/Volumes/HyperDrive/Final FULL/Final1024full.shp")
-bright <- st_read("~/Dropbox/UMN Postdoc/Ortho_Proc/BrightestWhiteRef_JMCCut_31May2019_fromFinalFULL1024.shp")
+sppoi <- as(finalfull1024,"Spatial")
+
+# cut out white ref by hand in R?
+library(raster)
+# poi <- st_read("/Volumes/HyperDrive/Final PLOTS/Final1024Plot62.shp")
+# sppoi <- as(poi,"Spatial")
+# 
+# finalfull1024 <- st_read("/Volumes/HyperDrive/Final FULL/Final1024full.shp")
+# sppoi <- as(finalfull1024,"Spatial")
+# 
+# gr <- sppoi$nm540_751
+# clye <- rgb(0, 0, 255, max = 255, alpha = 50, names = "yellow")
+# clbl <- rgb(0, 0, 255, max = 255, alpha = 5, names = "blue")
+# clgr <- rgb(0, 0, 255, max = 255, alpha = 5, names = "green")
+# color <- ifelse(gr > 0 & gr <= 300, "blue",ifelse(gr > 300 & gr <= 400, "green",ifelse(gr > 400, "yellow", NA)))
+# plot(sppoi,col=color)
+# refareagenerally <- click(sppoi)
+# sprefxy <- refareagenerally[,c("Lon2","Lat2")]
+# spref <- SpatialPointsDataFrame(coords=sprefxy,data=refareagenerally,proj4string = CRS("+init=epsg:32615")) 
+# color <- ifelse(gr > 0 & gr <= 400, clbl,ifelse(gr > 400 & gr <= 800, "green",ifelse(gr > 800 & gr <= 1000, "yellow", ifelse(gr > 1000, "red", NA))))
+# plot(spref,col=color)
+
+
+bright <- st_read("~/Ortho_Proc/BrightWhiteRef_BBFab_30July.shp")
 brightdf <- as.data.frame(bright)
 setDT(brightdf)
 bright_means <- brightdf[,lapply(.SD, mean),  .SDcols = 1:272]
 bright_means$Type <- "BrightRef"
-fwrite(bright_means,"~/Dropbox/UMN Postdoc/Ortho_Proc/BrightRef_meanval.csv",row.names=F)
-dark <- readGDAL("/Volumes/HyperDrive/Google Drive/remote sensing data/20180917/100039_darkBioCON_2018_09_17_14_46_37/raw_0")
+fwrite(bright_means,"~/Ortho_Proc/BrightRef_meanval.csv",row.names=F)
+dark <- readGDAL("F:/RemoteSensing/BigBio-eDNA-2019/BigBio-FAB1-2019-07-30-Hyper/100061_dark_2019_07_30_16_04_17raw_0")
 darkdf <- as.data.frame(dark)
 rm(dark)
-bandtowave <- read.csv("~/Dropbox/UMN Postdoc/Ortho_Proc/BandNumWavelength.csv")
+bandtowave <- read.csv("~/Ortho_Proc/BandNumWavelength.csv")
 colnames(darkdf)[1:272]<-gsub("\\.","_",paste0("nm",bandtowave$Wavelength))
 setDT(darkdf)
 dark_means <- darkdf[,lapply(.SD, mean),  .SDcols = 1:272]
 dark_means$Type <- "DarkRef"
-fwrite(dark_means,"~/Dropbox/UMN Postdoc/Ortho_Proc/DarkRef_meanval.csv")
-dark_means <- read.csv("~/Dropbox/UMN Postdoc/Ortho_Proc/DarkRef_meanval.csv")
+fwrite(dark_means,"~/Ortho_Proc/DarkRef_meanval.csv")
+dark_means <- read.csv("~/Ortho_Proc/DarkRef_meanval.csv")
 ### for each wavelength -- (target-dark)/(light-dark)
 
 light_dark_df1 <- rbind.fill(df,bright_means,dark_means)
