@@ -37,8 +37,8 @@ computer <- 'pc'
 LocalSource <- "~/Ortho_Proc/" #imu and biocon shapefile (polygons)
 ProcLoc <- "F:/BB_30July/"
 VisLoc <- "F:/BioCON10Aug--VISUAL/"
-RemoteSenDataLoc <- "F:/GoogleDrive/remote sensing data/" #2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48
-FolderLoc <- "2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48/"
+RemoteSenDataLoc <- "F:/RemoteSensing/BigBio-eDNA-2019/" #2019July30BigBioFab1/100062_bf_2019_07_30_16_05_48
+FolderLoc <- "BigBio-FAB1-2019-07-30-Hyper/100062_bf_2019_07_30_16_05_48/"
 CoordSystem <- 32615
 
 no_cores <- detectCores()-1
@@ -333,9 +333,9 @@ return(tot_out)
 
 }
 
-#ive done 95+
+#froze after 62 so starting 63 now
 listoffilenums <- sort(unique(as.numeric(gsub("\\D", "",list.files(paste0(RemoteSenDataLoc,FolderLoc))))))
-system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(90:94)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
+system.time(out_dfTEST <- rbindlist(lapply(listoffilenums[c(1:9)],ortho_fun,ProcessedIMU=Proc_IMU,PlotShapeFile=plotshp,bandtowave=bandtowave)))
 
 str(out_dfTEST)
 

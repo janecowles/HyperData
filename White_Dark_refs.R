@@ -35,8 +35,11 @@ brightdf <- as.data.frame(bright)
 setDT(brightdf)
 bright_means <- brightdf[,lapply(.SD, mean),  .SDcols = 1:272]
 bright_means$Type <- "BrightRef"
-fwrite(bright_means,"~/Ortho_Proc/BrightRef_meanval.csv",row.names=F)
-dark <- readGDAL("F:/RemoteSensing/BigBio-eDNA-2019/BigBio-FAB1-2019-07-30-Hyper/100061_dark_2019_07_30_16_04_17raw_0")
+fwrite(bright_means,"~/Ortho_Proc/BrightRef_meanvalBB.csv",row.names=F)
+dark <- read.ENVI("F:/RemoteSensing/BigBio-eDNA-2019/BigBio-FAB1-2019-07-30-Hyper/100061_dark_2019_07_30_16_04_17/raw_0")
+init.dim <- dim(dark)
+dim(dark) <- c(dim(dark)[1]*dim(dark)[2],dim(dark)[3])
+
 darkdf <- as.data.frame(dark)
 rm(dark)
 bandtowave <- read.csv("~/Ortho_Proc/BandNumWavelength.csv")
@@ -44,14 +47,14 @@ colnames(darkdf)[1:272]<-gsub("\\.","_",paste0("nm",bandtowave$Wavelength))
 setDT(darkdf)
 dark_means <- darkdf[,lapply(.SD, mean),  .SDcols = 1:272]
 dark_means$Type <- "DarkRef"
-fwrite(dark_means,"~/Ortho_Proc/DarkRef_meanval.csv")
+fwrite(dark_means,"~/Ortho_Proc/DarkRef_meanvalBB.csv")
 dark_means <- read.csv("~/Ortho_Proc/DarkRef_meanval.csv")
 ### for each wavelength -- (target-dark)/(light-dark)
 
-light_dark_df1 <- rbind.fill(df,bright_means,dark_means)
-
+light_dark_df1 <- rbind.fill(allplots,bright_means,dark_means)
+names(light_dark_df1)
 i=3
-system.time(for(i in 3:274){
+system.time(for(i in 1:272){
   # print((light_dark_df1[!is.na(light_dark_df1$Type)&light_dark_df1$Type=="BrightRef",i]-light_dark_df1[!is.na(light_dark_df1$Type)&light_dark_df1$Type=="DarkRef",i]))
   tmp <- (light_dark_df1[,i]-light_dark_df1[!is.na(light_dark_df1$Type)&light_dark_df1$Type=="DarkRef",i])/(light_dark_df1[!is.na(light_dark_df1$Type)&light_dark_df1$Type=="BrightRef",i]-light_dark_df1[!is.na(light_dark_df1$Type)&light_dark_df1$Type=="DarkRef",i])
   light_dark_df1<- cbind(light_dark_df1,tmp)
@@ -59,8 +62,9 @@ system.time(for(i in 3:274){
   
 })
 
-corrDF <- light_dark_df1[,c(1,275:294,310:315,317:334,338:362,383:404,470:742)]
+# corrDF <- light_dark_df1[,c(1,275:294,310:315,317:334,338:362,383:404,470:742)]
+corrDF <- light_dark_df1[,c(273:554)]
 
 
-fwrite(corrDF,"~/Documents/REFCORRECTED_DATA.csv")
+fwrite(corrDF,"~/REFCORRECTED_DATABIGBIO.csv")
 
